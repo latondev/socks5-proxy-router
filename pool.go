@@ -1,0 +1,89 @@
+package main
+
+import (
+	"log"
+	"sync"
+)
+
+// ProxyPool holds a list of verified proxies sorted by speed.
+// It picks one "current" proxy (fastest first) and sticks with it until failure or rotation.
+type ProxyPool struct {
+	mu      sync.RWMutex
+	proxies []Proxy
+	current int // index of the current active proxy
+}
+
+func NewProxyPool() *ProxyPool {
+	return &ProxyPool{}
+}
+
+// Update replaces the proxy list with new verified proxies.
+// Resets current to 0 (fastest proxy).
+func (p *ProxyPool) Update(proxies []Proxy) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.proxies = proxies
+	p.current = 0
+	if len(proxies) > 0 {
+		log.Printf("[pool] active proxy: %s (%s, %s) [%d ms]", proxies[0].Addr(), proxies[0].Country, proxies[0].City, proxies[0].Latency.Milliseconds())
+	}
+}
+
+// Current returns the current active proxy.
+func (p *ProxyPool) Current() (Proxy, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.proxies) == 0 {
+		return Proxy{}, false
+	}
+	return p.proxies[p.current], true
+}
+
+// SwitchNext moves to the next proxy in the list. Returns the new proxy.
+func (p *ProxyPool) SwitchNext() (Proxy, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.proxies) == 0 {
+		return Proxy{}, false
+	}
+	p.current = (p.current + 1) % len(p.proxies)
+	px := p.proxies[p.current]
+	log.Printf("[pool] switched to: %s (%s, %s) [%d ms]", px.Addr(), px.Country, px.City, px.Latency.Milliseconds())
+	return px, true
+}
+
+// SwitchTo switches to a specific proxy by index. Returns the proxy.
+func (p *ProxyPool) SwitchTo(index int) (Proxy, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if index < 0 || index >= len(p.proxies) {
+		return Proxy{}, false
+	}
+	p.current = index
+	px := p.proxies[p.current]
+	log.Printf("[pool] switched to: %s (%s, %s) [%d ms]", px.Addr(), px.Country, px.City, px.Latency.Milliseconds())
+	return px, true
+}
+
+// CurrentIndex returns the current active index.
+func (p *ProxyPool) CurrentIndex() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.current
+}
+
+// Size returns the current number of proxies in the pool.
+func (p *ProxyPool) Size() int {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return len(p.proxies)
+}
+
+// All returns a copy of all proxies in the pool.
+func (p *ProxyPool) All() []Proxy {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	result := make([]Proxy, len(p.proxies))
+	copy(result, p.proxies)
+	return result
+}
