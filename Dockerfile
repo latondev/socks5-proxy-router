@@ -7,7 +7,7 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o socks5-pool .
 
 # Run stage
 FROM alpine:3.19
-RUN apk --no-cache add ca-certificates
+RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=builder /app/socks5-pool .
 EXPOSE 1080 8080

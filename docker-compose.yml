@@ -1,0 +1,10 @@
+services:
+  socks5-router:
+    build: .
+    container_name: socks5-proxy-router
+    restart: always
+    ports:
+      - "1080:1080"
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh

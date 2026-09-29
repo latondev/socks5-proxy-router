@@ -72,7 +72,7 @@ func main() {
 
 	// Background: status dashboard
 	go func() {
-		status := NewStatusServer(pool)
+		status := NewStatusServer(pool, cfg.ListenAddr)
 		log.Printf("[status] dashboard at http://%s", cfg.StatusAddr)
 		if err := status.Start(cfg.StatusAddr); err != nil {
 			log.Printf("[status] failed to start: %v", err)
