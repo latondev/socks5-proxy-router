@@ -36,6 +36,8 @@ func addActivityLog(msg, logType string) {
 type StatusServer struct {
 	pool       *ProxyPool
 	listenAddr string
+	authUser   string
+	authPass   string
 }
 
 type StatusData struct {
@@ -57,6 +59,8 @@ type StatusData struct {
 	NextScrape        string        `json:"next_scrape"`
 	NextScrapeUnix    int64         `json:"next_scrape_unix"`
 	ListenAddr        string        `json:"listen_addr"`
+	AuthUser          string        `json:"auth_user"`
+	AuthPass          string        `json:"auth_pass"`
 	Logs              []ActivityLog `json:"logs"`
 	Proxies           []ProxyStatus `json:"proxies"`
 }
@@ -73,22 +77,40 @@ type ProxyStatus struct {
 	LatencyMs   int64  `json:"latency_ms"`
 }
 
-func NewStatusServer(pool *ProxyPool, listenAddr string) *StatusServer {
+func NewStatusServer(pool *ProxyPool, listenAddr string, authUser, authPass string) *StatusServer {
 	addActivityLog(fmt.Sprintf("SOCKS5 Router engine started on %s", listenAddr), "system")
 	return &StatusServer{
 		pool:       pool,
 		listenAddr: listenAddr,
+		authUser:   authUser,
+		authPass:   authPass,
+	}
+}
+
+func (s *StatusServer) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if s.authUser == "" && s.authPass == "" {
+			next(w, r)
+			return
+		}
+		u, p, ok := r.BasicAuth()
+		if !ok || u != s.authUser || p != s.authPass {
+			w.Header().Set("WWW-Authenticate", `Basic realm="SOCKS5 Proxy Router"`)
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		next(w, r)
 	}
 }
 
 func (s *StatusServer) Start(addr string) error {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleDashboard)
-	mux.HandleFunc("/api/status", s.handleAPI)
-	mux.HandleFunc("/api/refresh", s.handleRefresh)
-	mux.HandleFunc("/api/switch", s.handleSwitch)
-	mux.HandleFunc("/api/test", s.handleTest)
-	mux.HandleFunc("/api/export", s.handleExport)
+	mux.HandleFunc("/", s.requireAuth(s.handleDashboard))
+	mux.HandleFunc("/api/status", s.requireAuth(s.handleAPI))
+	mux.HandleFunc("/api/refresh", s.requireAuth(s.handleRefresh))
+	mux.HandleFunc("/api/switch", s.requireAuth(s.handleSwitch))
+	mux.HandleFunc("/api/test", s.requireAuth(s.handleTest))
+	mux.HandleFunc("/api/export", s.requireAuth(s.handleExport))
 	return http.ListenAndServe(addr, mux)
 }
 
@@ -198,6 +220,8 @@ func (s *StatusServer) getStatusData() StatusData {
 		NextScrape:        nextStr,
 		NextScrapeUnix:    nextUnix,
 		ListenAddr:        s.listenAddr,
+		AuthUser:          s.authUser,
+		AuthPass:          s.authPass,
 		Logs:              logsCopy,
 		Proxies:           ps,
 	}
@@ -1220,15 +1244,17 @@ body {
     <div class="tunnel-left">
       <span class="tunnel-status-chip">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
-        Active Tunnel
+        SOCKS5 Gateway
       </span>
       <div class="tunnel-main-addr">
-        <span id="active-addr-display">{{.ActiveProxy}}</span>
-        <button class="btn btn-ghost" style="padding:2px 7px;font-size:0.7rem;" onclick="copyActiveProxy()" title="Copy SOCKS5 URL">Copy</button>
+        <span id="gateway-addr-display">160.187.229.140:1080</span>
+        <button class="btn btn-ghost" style="padding:2px 7px;font-size:0.7rem;" onclick="copyActiveProxy()" title="Copy Gateway SOCKS5 URL">Copy</button>
       </div>
-      <div class="tunnel-loc">
+      <div class="tunnel-loc" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;margin-top:2px;">
+        <span style="opacity:0.65;">Current Exit IP:</span>
         <span class="flag-emoji" id="active-flag-emoji">🌐</span>
-        <span id="active-geo-display">{{.ActiveRegion}}</span>
+        <span id="active-addr-display" style="font-weight:600;">{{.ActiveProxy}}</span>
+        <span id="active-geo-display" style="opacity:0.85;">({{.ActiveRegion}})</span>
       </div>
     </div>
 
@@ -1709,11 +1735,12 @@ function triggerPoolRefresh() {
 }
 
 function copyActiveProxy() {
-  const el = document.getElementById('active-addr-display');
-  const txt = el ? el.textContent.trim() : '';
-  if (txt && txt !== 'None') {
-    copyText('socks5://' + txt, 'SOCKS5 URL copied: socks5://' + txt);
-  }
+  const host = window.location.hostname || '160.187.229.140';
+  const u = (appState && appState.auth_user) ? appState.auth_user : '';
+  const p = (appState && appState.auth_pass) ? appState.auth_pass : '';
+  const auth = u ? (encodeURIComponent(u) + ':' + encodeURIComponent(p) + '@') : '';
+  const url = 'socks5h://' + auth + host + ':1080';
+  copyText(url, 'Gateway SOCKS5 copied: ' + url);
 }
 
 function copyText(str, msg) {
@@ -1748,7 +1775,11 @@ function pickSnippetTab(type, btn) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  const ep = (appState && appState.listen_addr) ? appState.listen_addr : '127.0.0.1:1080';
+  const host = window.location.hostname || '160.187.229.140';
+  const u = (appState && appState.auth_user) ? appState.auth_user : '';
+  const p = (appState && appState.auth_pass) ? appState.auth_pass : '';
+  const auth = u ? (encodeURIComponent(u) + ':' + encodeURIComponent(p) + '@') : '';
+  const ep = auth + host + ':1080';
   const val = document.getElementById('snippet-display');
   if (!val) return;
 
@@ -1761,8 +1792,7 @@ function pickSnippetTab(type, btn) {
   } else if (type === 'git') {
     val.textContent = 'git config --global http.proxy socks5://' + ep;
   } else if (type === 'telegram') {
-    const parts = ep.split(':');
-    val.textContent = 'tg://socks?server=' + (parts[0] || '127.0.0.1') + '&port=' + (parts[1] || '1080');
+    val.textContent = 'tg://socks?server=' + host + '&port=1080' + (u ? ('&user=' + encodeURIComponent(u) + '&pass=' + encodeURIComponent(p)) : '');
   }
 }
 

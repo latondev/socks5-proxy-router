@@ -49,7 +49,7 @@ func CheckProxies(proxies []Proxy, timeout time.Duration, maxLatency time.Durati
 	)
 
 	// Cap candidates to test per cycle to keep check time under 10-15s
-	maxCandidates := 100
+	maxCandidates := 150
 	if len(proxies) > maxCandidates {
 		proxies = proxies[:maxCandidates]
 	}
@@ -114,7 +114,7 @@ func CheckProxies(proxies []Proxy, timeout time.Duration, maxLatency time.Durati
 	return alive
 }
 
-// checkHTTPS connects through the proxy to www.google.com:443 and performs a TLS handshake.
+// checkHTTPS connects through the proxy to www.google.com:443 and performs a real TLS handshake.
 // This guarantees the proxy supports HTTPS/port 443 required by OpenAI and Zed.
 func checkHTTPS(p Proxy, timeout time.Duration) (bool, time.Duration) {
 	start := time.Now()

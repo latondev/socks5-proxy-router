@@ -14,6 +14,8 @@ type Config struct {
 	CheckTimeout   time.Duration
 	MaxLatency     time.Duration
 	MaxConcurrent  int
+	AuthUser       string
+	AuthPass       string
 }
 
 func ParseConfig() *Config {
@@ -21,10 +23,12 @@ func ParseConfig() *Config {
 	flag.StringVar(&cfg.ListenAddr, "listen", "127.0.0.1:1080", "local SOCKS5 listen address")
 	flag.StringVar(&cfg.StatusAddr, "status", "127.0.0.1:8080", "HTTP status dashboard address")
 	flag.StringVar(&cfg.ScrapeURL, "url", "auto", "proxy list URL, file path, or 'auto' for multi-source")
-	flag.DurationVar(&cfg.ScrapeInterval, "scrape-interval", 20*time.Minute, "scrape interval")
-	flag.DurationVar(&cfg.CheckTimeout, "check-timeout", 4*time.Second, "proxy check timeout")
-	flag.DurationVar(&cfg.MaxLatency, "max-latency", 2500*time.Millisecond, "max allowed latency (e.g. 1500ms, 2s)")
+	flag.DurationVar(&cfg.ScrapeInterval, "scrape-interval", 8*time.Minute, "scrape interval")
+	flag.DurationVar(&cfg.CheckTimeout, "check-timeout", 3*time.Second, "proxy check timeout")
+	flag.DurationVar(&cfg.MaxLatency, "max-latency", 1600*time.Millisecond, "max allowed latency (e.g. 1500ms, 2s)")
 	flag.IntVar(&cfg.MaxConcurrent, "max-concurrent", 40, "max concurrent health checks")
+	flag.StringVar(&cfg.AuthUser, "user", os.Getenv("SOCKS_USER"), "SOCKS5 username (optional)")
+	flag.StringVar(&cfg.AuthPass, "pass", os.Getenv("SOCKS_PASS"), "SOCKS5 password (optional)")
 	flag.Parse()
 
 	// Cloud deployment: always use fixed ports

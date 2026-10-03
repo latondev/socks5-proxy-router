@@ -5,6 +5,8 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -19,12 +21,16 @@ const (
 type Server struct {
 	listenAddr string
 	pool       *ProxyPool
+	authUser   string
+	authPass   string
 }
 
-func NewServer(listenAddr string, pool *ProxyPool) *Server {
+func NewServer(listenAddr string, pool *ProxyPool, authUser, authPass string) *Server {
 	return &Server{
 		listenAddr: listenAddr,
 		pool:       pool,
+		authUser:   authUser,
+		authPass:   authPass,
 	}
 }
 
@@ -33,7 +39,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("listen failed: %w", err)
 	}
-	log.Printf("[server] SOCKS5 proxy listening on %s", s.listenAddr)
+	log.Printf("[server] SOCKS5 proxy listening on %s (auth: %v)", s.listenAddr, s.authUser != "")
 
 	for {
 		conn, err := ln.Accept()
@@ -48,15 +54,82 @@ func (s *Server) Start() error {
 func (s *Server) handleConn(conn net.Conn) {
 	defer conn.Close()
 
-	// 1. SOCKS5 handshake - read greeting
+	// 1. SOCKS5 handshake - read greeting with 10s deadline
+	conn.SetDeadline(time.Now().Add(10 * time.Second))
 	buf := make([]byte, 256)
 	n, err := conn.Read(buf)
 	if err != nil || n < 2 || buf[0] != socks5Version {
 		return
 	}
 
-	// Reply: no auth required
-	conn.Write([]byte{socks5Version, 0x00})
+	nMethods := int(buf[1])
+	if n < 2+nMethods {
+		return
+	}
+	methods := buf[2 : 2+nMethods]
+
+	hasUserPass := false
+	hasNoAuth := false
+	for _, m := range methods {
+		if m == 0x02 { // USERNAME/PASSWORD (RFC 1929)
+			hasUserPass = true
+		} else if m == 0x00 { // NO AUTHENTICATION REQUIRED
+			hasNoAuth = true
+		}
+	}
+
+	if s.authUser != "" && s.authPass != "" {
+		if !hasUserPass {
+			// Reject clients that don't support Username/Password authentication
+			conn.Write([]byte{socks5Version, 0xFF})
+			return
+		}
+
+		// Choose Method 0x02 (Username/Password)
+		if _, err := conn.Write([]byte{socks5Version, 0x02}); err != nil {
+			return
+		}
+
+		// Read RFC 1929 subnegotiation:
+		authHdr := make([]byte, 2)
+		if _, err := io.ReadFull(conn, authHdr); err != nil || authHdr[0] != 0x01 {
+			return
+		}
+		uLen := int(authHdr[1])
+		unameBuf := make([]byte, uLen)
+		if _, err := io.ReadFull(conn, unameBuf); err != nil {
+			return
+		}
+
+		pLenBuf := make([]byte, 1)
+		if _, err := io.ReadFull(conn, pLenBuf); err != nil {
+			return
+		}
+		pLen := int(pLenBuf[0])
+		passBuf := make([]byte, pLen)
+		if _, err := io.ReadFull(conn, passBuf); err != nil {
+			return
+		}
+
+		if string(unameBuf) != s.authUser || string(passBuf) != s.authPass {
+			conn.Write([]byte{0x01, 0x01}) // Status 0x01 = Auth failed
+			return
+		}
+
+		// Auth success: VER=0x01, STATUS=0x00
+		if _, err := conn.Write([]byte{0x01, 0x00}); err != nil {
+			return
+		}
+	} else {
+		if !hasNoAuth {
+			conn.Write([]byte{socks5Version, 0xFF})
+			return
+		}
+		// Reply: no auth required
+		if _, err := conn.Write([]byte{socks5Version, 0x00}); err != nil {
+			return
+		}
+	}
 
 	// 2. Read connect request
 	n, err = conn.Read(buf)
@@ -65,6 +138,9 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
+	// Clear deadline for relaying data
+	conn.SetDeadline(time.Time{})
+
 	// Parse target address
 	targetAddr, err := parseTarget(buf[:n])
 	if err != nil {
@@ -72,43 +148,49 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	// 3. Use current proxy, switch on failure
+	// 3. Connect via fastest live proxy (with fast 3s dial timeout); if fails, prune and retry
 	maxRetries := 3
 	for i := 0; i < maxRetries; i++ {
-		var upstream Proxy
-		var ok bool
-		if i == 0 {
-			upstream, ok = s.pool.Current()
-		} else {
-			upstream, ok = s.pool.SwitchNext()
-		}
+		upstream, ok := s.pool.Current()
 		if !ok {
-			log.Printf("[server] no proxies available")
-			s.sendReply(conn, 0x01) // general failure
-			return
+			break
 		}
 
-		remote, err := dialViaSOCKS5(upstream, targetAddr, 10*time.Second)
+		// Fast 3s timeout so clients (like Zed / AI agents) don't hang
+		remote, err := dialViaSOCKS5(upstream, targetAddr, 3*time.Second)
 		if err != nil {
-			log.Printf("[server] upstream %s failed: %v, switching...", upstream.Addr(), err)
+			log.Printf("[server] upstream %s dial failed: %v, pruning and trying next...", upstream.Addr(), err)
+			s.pool.RemoveFailed(upstream.Addr())
+			addActivityLog(fmt.Sprintf("Pruned dead proxy %s (%s), promoted next fastest", upstream.Addr(), upstream.Country), "switch")
 			continue
 		}
 
-		// Success
+		// Success: upstream established!
 		s.sendReply(conn, 0x00)
-		relay(conn, remote)
+		s.relay(conn, remote, upstream)
 		return
 	}
 
-	s.sendReply(conn, 0x01) // general failure after retries
+	// 4. Emergency Failover: If all upstream proxies in pool failed or empty, fallback to DIRECT VPS connection!
+	// This prevents "Connection Interrupted" for AI clients / Zed!
+	log.Printf("[server] upstream pool exhausted/failed, falling back to DIRECT VPS connection for %s", targetAddr)
+	addActivityLog(fmt.Sprintf("Emergency: Fallback to Direct VPS route for %s", targetAddr), "fallback")
+	directRemote, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)
+	if err != nil {
+		log.Printf("[server] direct connection to %s failed: %v", targetAddr, err)
+		s.sendReply(conn, 0x04) // host unreachable
+		TriggerRefresh()
+		return
+	}
+
+	s.sendReply(conn, 0x00)
+	s.relayDirect(conn, directRemote)
 }
 
 func (s *Server) sendReply(conn net.Conn, status byte) {
-	// Minimal SOCKS5 reply: ver, status, rsv, atyp(ipv4), addr(0.0.0.0), port(0)
 	conn.Write([]byte{socks5Version, status, 0x00, atypIPv4, 0, 0, 0, 0, 0, 0})
 }
 
-// parseTarget extracts the target address from a SOCKS5 connect request.
 func parseTarget(buf []byte) (string, error) {
 	if len(buf) < 7 {
 		return "", fmt.Errorf("request too short")
@@ -146,7 +228,6 @@ func parseTarget(buf []byte) (string, error) {
 	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
-// dialViaSOCKS5 connects to target through an upstream SOCKS5 proxy.
 func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Conn, error) {
 	conn, err := net.DialTimeout("tcp", upstream.Addr(), timeout)
 	if err != nil {
@@ -154,7 +235,6 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 	}
 	conn.SetDeadline(time.Now().Add(timeout))
 
-	// SOCKS5 greeting
 	conn.Write([]byte{0x05, 0x01, 0x00})
 	buf := make([]byte, 2)
 	if _, err := io.ReadFull(conn, buf); err != nil {
@@ -166,7 +246,6 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 		return nil, fmt.Errorf("not socks5")
 	}
 
-	// Parse target host:port
 	host, portStr, err := net.SplitHostPort(target)
 	if err != nil {
 		conn.Close()
@@ -175,10 +254,7 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 	port := 0
 	fmt.Sscanf(portStr, "%d", &port)
 
-	// Build connect request
 	req := []byte{0x05, 0x01, 0x00}
-
-	// Check if host is an IP
 	if ip := net.ParseIP(host); ip != nil {
 		if ip4 := ip.To4(); ip4 != nil {
 			req = append(req, atypIPv4)
@@ -188,7 +264,6 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 			req = append(req, ip...)
 		}
 	} else {
-		// Domain name
 		req = append(req, atypDomain, byte(len(host)))
 		req = append(req, []byte(host)...)
 	}
@@ -196,7 +271,6 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 
 	conn.Write(req)
 
-	// Read reply
 	resp := make([]byte, 256)
 	n, err := conn.Read(resp)
 	if err != nil || n < 2 || resp[1] != 0x00 {
@@ -207,27 +281,77 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 		return nil, fmt.Errorf("upstream connect failed, status: %d", resp[1])
 	}
 
-	// Clear deadline for relay
 	conn.SetDeadline(time.Time{})
 	return conn, nil
 }
 
-// relay copies data bidirectionally between two connections.
-func relay(left, right net.Conn) {
-	defer left.Close()
-	defer right.Close()
+func (s *Server) relay(client, upstream net.Conn, px Proxy) {
+	defer client.Close()
+	defer upstream.Close()
 
-	done := make(chan struct{}, 2)
-	cp := func(dst, src net.Conn) {
-		io.Copy(dst, src)
-		// Try half-close if supported
-		if tc, ok := dst.(*net.TCPConn); ok {
+	start := time.Now()
+	var clientBytes, upstreamBytes int64
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	// client -> upstream
+	go func() {
+		defer wg.Done()
+		n, _ := io.Copy(upstream, client)
+		atomic.StoreInt64(&clientBytes, n)
+		if tc, ok := upstream.(*net.TCPConn); ok {
 			tc.CloseWrite()
 		}
-		done <- struct{}{}
-	}
+	}()
 
-	go cp(left, right)
-	go cp(right, left)
-	<-done
+	// upstream -> client
+	go func() {
+		defer wg.Done()
+		n, _ := io.Copy(client, upstream)
+		atomic.StoreInt64(&upstreamBytes, n)
+		if tc, ok := client.(*net.TCPConn); ok {
+			tc.CloseWrite()
+		}
+	}()
+
+	wg.Wait()
+	duration := time.Since(start)
+
+	cBytes := atomic.LoadInt64(&clientBytes)
+	uBytes := atomic.LoadInt64(&upstreamBytes)
+
+	// Zombie proxy detection:
+	// If client sent meaningful request (e.g. TLS ClientHello > 40 bytes) but upstream closed connection immediately
+	// without returning ANY response data (< 6 seconds duration), this proxy dropped/blocked SSL/TLS traffic!
+	if cBytes > 40 && uBytes == 0 && duration < 6*time.Second {
+		log.Printf("[server] zombie proxy detected: %s dropped connection with 0 bytes returned (sent: %d, dur: %v), pruning...", px.Addr(), cBytes, duration)
+		s.pool.RemoveFailed(px.Addr())
+		addActivityLog(fmt.Sprintf("Pruned zombie proxy %s (%s, 0 bytes returned)", px.Addr(), px.Country), "switch")
+	}
+}
+
+func (s *Server) relayDirect(client, remote net.Conn) {
+	defer client.Close()
+	defer remote.Close()
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func() {
+		defer wg.Done()
+		io.Copy(remote, client)
+		if tc, ok := remote.(*net.TCPConn); ok {
+			tc.CloseWrite()
+		}
+	}()
+
+	go func() {
+		defer wg.Done()
+		io.Copy(client, remote)
+		if tc, ok := client.(*net.TCPConn); ok {
+			tc.CloseWrite()
+		}
+	}()
+
+	wg.Wait()
 }

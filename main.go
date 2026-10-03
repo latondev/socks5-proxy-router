@@ -1,8 +1,8 @@
 package main
 
 import (
+	"fmt"
 	"log"
-	"math/rand"
 	"sync"
 	"time"
 )
@@ -11,7 +11,7 @@ var (
 	lastScrapeTime time.Time
 	nextScrapeTime time.Time
 	scrapeMu       sync.RWMutex
-	refreshChan    = make(chan struct{}, 1) // manual refresh trigger
+	refreshChan    = make(chan struct{}, 1)
 )
 
 func getScrapeTimes() (last, next time.Time) {
@@ -29,6 +29,11 @@ func main() {
 	log.Printf("  source:   %s", cfg.ScrapeURL)
 	log.Printf("  scrape:   every %s", cfg.ScrapeInterval)
 	log.Printf("  max-lat:  %s", cfg.MaxLatency)
+	if cfg.AuthUser != "" && cfg.AuthPass != "" {
+		log.Printf("  auth:     ENABLED (user: %s)", cfg.AuthUser)
+	} else {
+		log.Printf("  auth:     DISABLED")
+	}
 
 	pool := NewProxyPool()
 
@@ -55,24 +60,42 @@ func main() {
 		}
 	}()
 
-	// Background: random proxy rotation every 3-6 minutes
-	// If pool is empty, trigger immediate refresh instead of rotating
+	// Background: Proactive Active Watchdog (runs every 25 seconds)
+	// Actively tests the current active proxy with real TLS handshake.
+	// If it fails or dies, it prunes it immediately before any client experiences a hang!
+	go func() {
+		ticker := time.NewTicker(25 * time.Second)
+		defer ticker.Stop()
+		for range ticker.C {
+			current, ok := pool.Current()
+			if !ok {
+				continue
+			}
+			okCheck, lat := checkHTTPS(current, 3*time.Second)
+			if !okCheck {
+				log.Printf("[watchdog] active proxy %s failed proactive TLS test, pruning immediately...", current.Addr())
+				pool.RemoveFailed(current.Addr())
+				addActivityLog(fmt.Sprintf("Watchdog pruned dead proxy %s (%s)", current.Addr(), current.Country), "watchdog")
+			} else {
+				current.Latency = lat
+			}
+		}
+	}()
+
+	// Background: keep pool healthy and populate when low
 	go func() {
 		for {
-			delay := 3*time.Minute + time.Duration(rand.Intn(4))*time.Minute
-			time.Sleep(delay)
-			if pool.Size() == 0 {
-				log.Printf("[main] pool empty, triggering immediate refresh")
+			time.Sleep(20 * time.Second)
+			if pool.Size() < 5 {
+				log.Printf("[main] pool low (%d remaining), triggering fresh scrape", pool.Size())
 				TriggerRefresh()
-			} else if pool.Size() > 1 {
-				pool.SwitchNext()
 			}
 		}
 	}()
 
 	// Background: status dashboard
 	go func() {
-		status := NewStatusServer(pool, cfg.ListenAddr)
+		status := NewStatusServer(pool, cfg.ListenAddr, cfg.AuthUser, cfg.AuthPass)
 		log.Printf("[status] dashboard at http://%s", cfg.StatusAddr)
 		if err := status.Start(cfg.StatusAddr); err != nil {
 			log.Printf("[status] failed to start: %v", err)
@@ -80,7 +103,7 @@ func main() {
 	}()
 
 	// Start SOCKS5 server (blocks)
-	server := NewServer(cfg.ListenAddr, pool)
+	server := NewServer(cfg.ListenAddr, pool, cfg.AuthUser, cfg.AuthPass)
 	log.Fatal(server.Start())
 }
 
@@ -102,11 +125,9 @@ func refreshPool(cfg *Config, pool *ProxyPool) {
 	log.Printf("[main] pool refreshed: %d alive proxies", pool.Size())
 }
 
-// TriggerRefresh sends a manual refresh signal (non-blocking).
 func TriggerRefresh() {
 	select {
 	case refreshChan <- struct{}{}:
 	default:
-		// already pending
 	}
 }
