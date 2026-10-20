@@ -5,3 +5,4 @@ vps_plan.md
 *.tar.gz
 __pycache__/
 *.pyc
+*~
