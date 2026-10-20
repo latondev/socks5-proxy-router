@@ -140,13 +140,20 @@ Visit `http://localhost:8080` (or `http://YOUR_IP:8080`) in your browser to acce
 
 | Endpoint | Method | Description |
 | :--- | :--- | :--- |
-| `/api/status` | `GET` | Returns full pool status JSON (total count, active proxy, metrics, proxy list). |
+| `/api/status` | `GET` | Returns pool status JSON (total count, active proxy, metrics, proxy list). Supports optional `min_latency_ms` and exclusive `max_latency_ms` filters. |
 | `/api/switch` | `GET` | Rotates to the next proxy in the pool. |
 | `/api/switch?index=N` | `GET` | Switches route to proxy at zero-based index `N`. |
 | `/api/refresh` | `POST` | Triggers background re-scraping and health checks. |
 | `/api/test` | `GET` | Performs real-time Google TLS handshake through the active proxy. |
-| `/api/export?format=text` | `GET` | Exports active proxy list in raw plain text format (`host:port\n`). |
-| `/api/export?format=json` | `GET` | Exports active proxy list in full JSON array format. |
+| `/api/export?format=text` | `GET` | Exports the proxy list in raw plain text format (`host:port\n`). Supports optional `min_latency_ms` and exclusive `max_latency_ms` filters. |
+| `/api/export?format=json` | `GET` | Exports the proxy list in full JSON array format. Supports optional `min_latency_ms` and exclusive `max_latency_ms` filters. |
+| `/api/feed` | `POST` | Ingests verified proxies from external Harvester in JSON or raw text (`IP:Port`) format, auto-sorting the pool. |
+
+Latency filters use milliseconds. To export only the green and yellow proxies shown in the dashboard (under `1200ms`):
+
+```bash
+curl -u "USER:PASS" "http://YOUR_VPS_IP:8080/api/export?format=json&max_latency_ms=1200"
+```
 
 ---
 
@@ -227,17 +234,26 @@ git config --global https.proxy 'socks5h://127.0.0.1:1080'
 ## Repository Structure
 
 ```text
-├── checker.go         # Concurrent proxy health checks & Google TLS verification
-├── config.go          # CLI configuration parsing and environment handling
-├── docker-compose.yml # 1-click Docker Compose production setup
-├── Dockerfile         # Multi-stage lightweight Alpine build (< 20MB)
-├── go.mod             # Go module definition
-├── main.go            # Service orchestration, background scraper & rotation loops
-├── pool.go            # Thread-safe proxy pool management & index rotation
-├── scraper.go         # Multi-source scraper (Proxify, Monosans, socks5-proxy)
-├── server.go          # Pure Go SOCKS5 RFC1928 protocol engine & TCP relay
-├── status.go          # Enterprise Dark Web Console & REST API handlers
-└── start.bat          # Quick-launch batch script for Windows users
+├── cmd/
+│   └── server/
+│       └── main.go            # Binary entrypoint
+├── internal/
+│   ├── app/                   # Service orchestration & background task manager
+│   ├── checker/               # Concurrent Google TLS handshake & GeoIP resolution
+│   ├── collector/             # Extensible proxy scraping engine (Manager & Providers)
+│   ├── config/                # CLI flags & environment configuration
+│   ├── dashboard/             # REST API endpoints & web console handlers
+│   ├── model/                 # Core domain models (Proxy, Status, Filter, Logs)
+│   └── router/                # SOCKS5 server gateway, failover relay & ProxyPool
+├── web/
+│   ├── templates/
+│   │   └── dashboard.html     # Modern Dark Web Console UI template
+│   └── web.go                 # Asset embedding via go:embed
+├── docker-compose.yml         # Docker Compose orchestration
+├── Dockerfile                 # Multi-stage Alpine container build (< 20MB)
+├── go.mod                     # Go module definition
+├── main.go                    # Root convenience entrypoint (go run .)
+└── start.bat                  # Windows quick launch script
 ```
 
 ---

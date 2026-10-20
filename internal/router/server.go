@@ -1,4 +1,4 @@
-package main
+package router
 
 import (
 	"fmt"
@@ -8,6 +8,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"socks5-pool/internal/model"
 )
 
 const (
@@ -18,19 +20,37 @@ const (
 	atypIPv6      = 0x04
 )
 
+// Server implements a routing SOCKS5 gateway with authentication, intelligent retry,
+// auto-failover, and emergency direct fallback.
 type Server struct {
 	listenAddr string
 	pool       *ProxyPool
 	authUser   string
 	authPass   string
+	logStore   *LogStore
+	onRefresh  func()
 }
 
-func NewServer(listenAddr string, pool *ProxyPool, authUser, authPass string) *Server {
+func NewServer(listenAddr string, pool *ProxyPool, authUser, authPass string, logStore *LogStore, onRefresh func()) *Server {
 	return &Server{
 		listenAddr: listenAddr,
 		pool:       pool,
 		authUser:   authUser,
 		authPass:   authPass,
+		logStore:   logStore,
+		onRefresh:  onRefresh,
+	}
+}
+
+func (s *Server) log(msg, logType string) {
+	if s.logStore != nil {
+		s.logStore.Add(msg, logType)
+	}
+}
+
+func (s *Server) triggerRefresh() {
+	if s.onRefresh != nil {
+		s.onRefresh()
 	}
 }
 
@@ -39,7 +59,7 @@ func (s *Server) Start() error {
 	if err != nil {
 		return fmt.Errorf("listen failed: %w", err)
 	}
-	log.Printf("[server] SOCKS5 proxy listening on %s (auth: %v)", s.listenAddr, s.authUser != "")
+	log.Printf("[server] SOCKS5 proxy router listening on %s (auth: %v)", s.listenAddr, s.authUser != "")
 
 	for {
 		conn, err := ln.Accept()
@@ -80,17 +100,14 @@ func (s *Server) handleConn(conn net.Conn) {
 
 	if s.authUser != "" && s.authPass != "" {
 		if !hasUserPass {
-			// Reject clients that don't support Username/Password authentication
 			conn.Write([]byte{socks5Version, 0xFF})
 			return
 		}
 
-		// Choose Method 0x02 (Username/Password)
 		if _, err := conn.Write([]byte{socks5Version, 0x02}); err != nil {
 			return
 		}
 
-		// Read RFC 1929 subnegotiation:
 		authHdr := make([]byte, 2)
 		if _, err := io.ReadFull(conn, authHdr); err != nil || authHdr[0] != 0x01 {
 			return
@@ -112,11 +129,10 @@ func (s *Server) handleConn(conn net.Conn) {
 		}
 
 		if string(unameBuf) != s.authUser || string(passBuf) != s.authPass {
-			conn.Write([]byte{0x01, 0x01}) // Status 0x01 = Auth failed
+			conn.Write([]byte{0x01, 0x01})
 			return
 		}
 
-		// Auth success: VER=0x01, STATUS=0x00
 		if _, err := conn.Write([]byte{0x01, 0x00}); err != nil {
 			return
 		}
@@ -125,7 +141,6 @@ func (s *Server) handleConn(conn net.Conn) {
 			conn.Write([]byte{socks5Version, 0xFF})
 			return
 		}
-		// Reply: no auth required
 		if _, err := conn.Write([]byte{socks5Version, 0x00}); err != nil {
 			return
 		}
@@ -138,10 +153,8 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	// Clear deadline for relaying data
 	conn.SetDeadline(time.Time{})
 
-	// Parse target address
 	targetAddr, err := parseTarget(buf[:n])
 	if err != nil {
 		s.sendReply(conn, 0x04) // host unreachable
@@ -156,30 +169,27 @@ func (s *Server) handleConn(conn net.Conn) {
 			break
 		}
 
-		// Fast 3s timeout so clients (like Zed / AI agents) don't hang
 		remote, err := dialViaSOCKS5(upstream, targetAddr, 3*time.Second)
 		if err != nil {
 			log.Printf("[server] upstream %s dial failed: %v, pruning and trying next...", upstream.Addr(), err)
 			s.pool.RemoveFailed(upstream.Addr())
-			addActivityLog(fmt.Sprintf("Pruned dead proxy %s (%s), promoted next fastest", upstream.Addr(), upstream.Country), "switch")
+			s.log(fmt.Sprintf("Pruned dead proxy %s (%s), promoted next fastest", upstream.Addr(), upstream.Country), "switch")
 			continue
 		}
 
-		// Success: upstream established!
 		s.sendReply(conn, 0x00)
 		s.relay(conn, remote, upstream)
 		return
 	}
 
 	// 4. Emergency Failover: If all upstream proxies in pool failed or empty, fallback to DIRECT VPS connection!
-	// This prevents "Connection Interrupted" for AI clients / Zed!
 	log.Printf("[server] upstream pool exhausted/failed, falling back to DIRECT VPS connection for %s", targetAddr)
-	addActivityLog(fmt.Sprintf("Emergency: Fallback to Direct VPS route for %s", targetAddr), "fallback")
+	s.log(fmt.Sprintf("Emergency: Fallback to Direct VPS route for %s", targetAddr), "fallback")
 	directRemote, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)
 	if err != nil {
 		log.Printf("[server] direct connection to %s failed: %v", targetAddr, err)
-		s.sendReply(conn, 0x04) // host unreachable
-		TriggerRefresh()
+		s.sendReply(conn, 0x04)
+		s.triggerRefresh()
 		return
 	}
 
@@ -228,7 +238,7 @@ func parseTarget(buf []byte) (string, error) {
 	return fmt.Sprintf("%s:%d", host, port), nil
 }
 
-func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Conn, error) {
+func dialViaSOCKS5(upstream model.Proxy, target string, timeout time.Duration) (net.Conn, error) {
 	conn, err := net.DialTimeout("tcp", upstream.Addr(), timeout)
 	if err != nil {
 		return nil, err
@@ -285,7 +295,7 @@ func dialViaSOCKS5(upstream Proxy, target string, timeout time.Duration) (net.Co
 	return conn, nil
 }
 
-func (s *Server) relay(client, upstream net.Conn, px Proxy) {
+func (s *Server) relay(client, upstream net.Conn, px model.Proxy) {
 	defer client.Close()
 	defer upstream.Close()
 
@@ -321,12 +331,10 @@ func (s *Server) relay(client, upstream net.Conn, px Proxy) {
 	uBytes := atomic.LoadInt64(&upstreamBytes)
 
 	// Zombie proxy detection:
-	// If client sent meaningful request (e.g. TLS ClientHello > 40 bytes) but upstream closed connection immediately
-	// without returning ANY response data (< 6 seconds duration), this proxy dropped/blocked SSL/TLS traffic!
 	if cBytes > 40 && uBytes == 0 && duration < 6*time.Second {
 		log.Printf("[server] zombie proxy detected: %s dropped connection with 0 bytes returned (sent: %d, dur: %v), pruning...", px.Addr(), cBytes, duration)
 		s.pool.RemoveFailed(px.Addr())
-		addActivityLog(fmt.Sprintf("Pruned zombie proxy %s (%s, 0 bytes returned)", px.Addr(), px.Country), "switch")
+		s.log(fmt.Sprintf("Pruned zombie proxy %s (%s, 0 bytes returned)", px.Addr(), px.Country), "switch")
 	}
 }
 

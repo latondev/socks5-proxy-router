@@ -2,3 +2,6 @@
 socks5-pool
 vps_plan.md
 .agents/
+*.tar.gz
+__pycache__/
+*.pyc

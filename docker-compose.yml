@@ -10,3 +10,19 @@ services:
       - TZ=Asia/Ho_Chi_Minh
       - SOCKS_USER=vpsadmin
       - SOCKS_PASS=ProxyRotator2026!
+
+  proxy-harvester:
+    build:
+      context: ./harvester
+    container_name: socks5-proxy-harvester
+    restart: always
+    depends_on:
+      - socks5-router
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+      - ROUTER_FEED_URL=http://socks5-router:8080/api/feed
+      - SOCKS_USER=vpsadmin
+      - SOCKS_PASS=ProxyRotator2026!
+      - FIRECRAWL_API_KEY=fc-ca86eb307fe74f40aa5177f572693565
+      - CYCLE_INTERVAL=600
+      - CHECK_TIMEOUT=2.5

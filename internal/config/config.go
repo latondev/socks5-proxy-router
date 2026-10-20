@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"flag"
@@ -18,7 +18,7 @@ type Config struct {
 	AuthPass       string
 }
 
-func ParseConfig() *Config {
+func Parse() *Config {
 	cfg := &Config{}
 	flag.StringVar(&cfg.ListenAddr, "listen", "127.0.0.1:1080", "local SOCKS5 listen address")
 	flag.StringVar(&cfg.StatusAddr, "status", "127.0.0.1:8080", "HTTP status dashboard address")

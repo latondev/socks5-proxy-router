@@ -1,0 +1,2794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOCKS5 Proxy Router Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-app: #07090e;
+  --bg-surface: #0c1017;
+  --bg-card: rgba(16, 23, 34, 0.7);
+  --bg-card-hover: rgba(22, 32, 48, 0.85);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(56, 189, 248, 0.45);
+  --accent-sky: #38bdf8;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-rose: #f43f5e;
+  --accent-purple: #a855f7;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, Monaco, Consolas, monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 9999px;
+  --shadow-panel: 0 4px 20px -2px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-app);
+  background-image: 
+    radial-gradient(ellipse 70% 30% at 50% 0%, rgba(56, 189, 248, 0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 85% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 50%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Header */
+.app-header {
+  height: 60px;
+  background: rgba(12, 16, 23, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  padding: 0 20px;
+}
+
+.header-inner {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.brand-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon-box {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.22), rgba(16, 185, 129, 0.15));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent-sky);
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.15);
+}
+
+.brand-text {
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-pill {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pulse-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-emerald);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--accent-emerald);
+  animation: pulseDot 2s infinite ease-in-out;
+}
+
+@keyframes pulseDot {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.4); opacity: 1; }
+}
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.listen-badge {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-pill);
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-sky);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.listen-badge:hover {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.16s ease;
+  border: none;
+  font-family: var(--font-sans);
+  user-select: none;
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #0284c7, #0369a1);
+  color: #fff;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7);
+  box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.btn-success {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.btn-success:hover:not(:disabled) {
+  background: rgba(16, 185, 129, 0.2);
+  color: #fff;
+}
+
+.icon-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Active Tunnel Top Bar */
+.tunnel-bar {
+  background: linear-gradient(90deg, rgba(14, 21, 33, 0.98), rgba(9, 14, 22, 0.98));
+  border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 12px 20px;
+}
+
+.tunnel-inner {
+  max-width: 1440px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tunnel-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.tunnel-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent-emerald);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  letter-spacing: 0.04em;
+}
+
+.tunnel-main-addr {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tunnel-loc {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.flag-emoji {
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
+.tunnel-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.latency-pill {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.latency-fast {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.latency-mid {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent-amber);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.latency-slow {
+  background: rgba(244, 63, 94, 0.15);
+  color: var(--accent-rose);
+  border: 1px solid rgba(244, 63, 94, 0.3);
+}
+
+/* 2-Column Main Workspace */
+.app-layout {
+  flex: 1;
+  max-width: 1440px;
+  width: 100%;
+  margin: 18px auto 0;
+  padding: 0 20px 24px;
+  display: grid;
+  grid-template-columns: 350px 1fr;
+  gap: 18px;
+}
+
+/* Left Sidebar Console */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.console-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-panel);
+}
+
+.card-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.card-heading {
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-grid-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.stat-box {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+
+.stat-box-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.stat-box-val {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+  margin-top: 2px;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.stat-box-val small {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.progress-track {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  display: flex;
+  margin: 6px 0 10px;
+}
+
+.fill-item {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.fill-green { background: var(--accent-emerald); }
+.fill-amber { background: var(--accent-amber); }
+.fill-rose { background: var(--accent-rose); }
+
+.countdown-bar {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.78rem;
+}
+
+.countdown-time {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent-sky);
+}
+
+/* Snippets Tabs */
+.snippet-tabs {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  padding: 4px 9px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.tab-btn.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-sky);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.code-field {
+  background: #04060a;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: #38bdf8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  word-break: break-all;
+}
+
+/* Activity Logs */
+.log-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.log-item {
+  font-size: 0.75rem;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--text-secondary);
+}
+
+.log-time {
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  flex-shrink: 0;
+}
+
+.log-badge-switch { color: var(--accent-sky); }
+.log-badge-refresh { color: var(--accent-emerald); }
+.log-badge-test { color: var(--accent-amber); }
+.log-badge-system { color: var(--accent-purple); }
+
+/* Right Column: Proxy Pool Explorer */
+.explorer-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  box-shadow: var(--shadow-panel);
+  display: flex;
+  flex-direction: column;
+}
+
+.explorer-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 220px;
+}
+
+.search-box-input {
+  width: 100%;
+  background: #04060a;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 32px 8px 36px;
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  outline: none;
+  transition: all 0.18s ease;
+}
+
+.search-box-input:focus {
+  border-color: var(--accent-sky);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.18);
+}
+
+.search-ico {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.clear-ico {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: none;
+  font-size: 0.95rem;
+}
+
+.clear-ico:hover {
+  color: #fff;
+}
+
+.filter-set {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  padding: 5px 11px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.filter-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.filter-chip.active {
+  background: rgba(56, 189, 248, 0.15);
+  color: var(--accent-sky);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.view-segment {
+  display: flex;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 2px;
+}
+
+.segment-btn {
+  padding: 4px 7px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.segment-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Proxy Card List */
+.proxies-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  max-height: calc(100vh - 240px);
+  padding-right: 4px;
+}
+
+.proxy-card-item {
+  background: rgba(11, 15, 22, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.18s ease;
+  cursor: pointer;
+}
+
+.proxy-card-item:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255, 255, 255, 0.18);
+  transform: translateX(2px);
+}
+
+.proxy-card-item.active {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.08);
+}
+
+.card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.card-idx {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.card-center {
+  min-width: 0;
+}
+
+.card-addr-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.card-addr {
+  font-family: var(--font-mono);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #fff;
+}
+
+.card-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.card-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.switch-cta-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.proxy-card-item:hover .switch-cta-btn {
+  background: var(--accent-sky);
+  color: #06090e;
+  border-color: var(--accent-sky);
+}
+
+.proxy-card-item.active .switch-cta-btn {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--accent-emerald);
+  border-color: rgba(16, 185, 129, 0.3);
+  pointer-events: none;
+}
+
+/* Dense Table */
+.dense-table-wrap {
+  overflow-x: auto;
+  max-height: calc(100vh - 240px);
+}
+
+.compact-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.compact-table th {
+  padding: 9px 12px;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 0;
+  background: rgba(11, 15, 22, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+.compact-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.compact-table tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.compact-table tr.active td {
+  background: rgba(16, 185, 129, 0.06);
+}
+
+/* Empty View */
+.no-data {
+  text-align: center;
+  padding: 48px 16px;
+  color: var(--text-muted);
+}
+
+.no-data-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+/* Toast Notifications */
+.toast-box {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.toast-pill {
+  background: rgba(16, 23, 34, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #fff;
+  padding: 9px 15px;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+  animation: toastShow 0.2s forwards, toastHide 0.2s forwards 2.8s;
+  pointer-events: auto;
+}
+
+@keyframes toastShow { to { opacity: 1; transform: translateY(0); } }
+@keyframes toastHide { to { opacity: 0; transform: translateY(-8px); } }
+
+@media (max-width: 960px) {
+  .app-layout { grid-template-columns: 1fr; }
+  .tunnel-inner { flex-direction: column; align-items: flex-start; }
+  .tunnel-right { width: 100%; justify-content: space-between; }
+}
+
+/* Modal & Pipeline Flow */
+.btn-purple {
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.4);
+  color: #c084fc;
+  transition: all 0.2s ease;
+}
+.btn-purple:hover {
+  background: rgba(168, 85, 247, 0.3);
+  border-color: #c084fc;
+  color: #fff;
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.35);
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 6, 12, 0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 1180px;
+  max-height: 90vh;
+  background: #090e17;
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  border-radius: 20px;
+  box-shadow: 0 25px 60px -10px rgba(0,0,0,0.85), 0 0 45px rgba(168, 85, 247, 0.15);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform: scale(0.96) translateY(10px);
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.modal-overlay.active .modal-card {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  padding: 18px 24px;
+  background: rgba(16, 23, 34, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.modal-title-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(56, 189, 248, 0.2));
+  border: 1px solid rgba(168, 85, 247, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c084fc;
+}
+
+.modal-title-text h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.modal-title-text p {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.modal-close-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-close-btn:hover {
+  background: rgba(244, 63, 94, 0.2);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #fff;
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Pipeline Grid */
+.pipeline-flow {
+  display: grid;
+  grid-template-columns: 1.15fr 40px 1fr 40px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 900px) {
+  .pipeline-flow {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .pipe-arrow {
+    transform: rotate(90deg);
+    margin: 8px auto;
+  }
+}
+
+.pipe-col {
+  background: rgba(13, 19, 30, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+
+.pipe-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.pipe-col-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pipe-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.pipe-badge-purple { background: rgba(168, 85, 247, 0.18); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.35); }
+.pipe-badge-blue { background: rgba(56, 189, 248, 0.18); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.35); }
+.pipe-badge-green { background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+
+.pipe-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a855f7;
+  opacity: 0.8;
+  animation: pulseArrow 1.6s ease-in-out infinite;
+}
+
+@keyframes pulseArrow {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; filter: drop-shadow(0 0 8px #a855f7); }
+}
+
+/* Worker Cards */
+.worker-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  max-height: 380px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.worker-card {
+  background: rgba(18, 26, 40, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 9px;
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  transition: all 0.15s ease;
+}
+
+.worker-card:hover {
+  border-color: rgba(168, 85, 247, 0.4);
+  background: rgba(24, 34, 52, 0.9);
+  transform: translateX(2px);
+}
+
+.worker-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.worker-tag {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+/* Controller / Core Box */
+.step-box {
+  background: rgba(18, 26, 40, 0.85);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.step-box-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--accent-sky);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.step-box-desc {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.spec-banner {
+  background: linear-gradient(135deg, rgba(16, 23, 34, 0.9), rgba(12, 16, 23, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spec-item span:first-child {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.spec-item span:last-child {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+  font-family: var(--font-mono);
+}
+
+/* Worker Inspector Styles */
+.worker-card {
+  cursor: pointer;
+}
+.worker-card:hover {
+  border-color: rgba(168, 85, 247, 0.6) !important;
+  background: rgba(30, 42, 65, 0.95) !important;
+  box-shadow: 0 0 12px rgba(168, 85, 247, 0.2);
+}
+.worker-inspect-pill {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transition: all 0.15s ease;
+}
+.worker-card:hover .worker-inspect-pill {
+  background: #a855f7;
+  color: #fff;
+  border-color: #a855f7;
+}
+
+/* Worker Detail Modal/View */
+.worker-inspect-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.worker-nav-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.worker-tabs-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  max-width: 100%;
+  padding-bottom: 4px;
+}
+
+.worker-tab-chip {
+  padding: 5px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.worker-tab-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.worker-tab-chip.active {
+  background: rgba(168, 85, 247, 0.2);
+  border-color: rgba(168, 85, 247, 0.5);
+  color: #c084fc;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+}
+
+.worker-hero {
+  background: linear-gradient(135deg, rgba(20, 29, 45, 0.8), rgba(12, 17, 26, 0.9));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.worker-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.worker-hero-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: rgba(168, 85, 247, 0.15);
+  border: 1px solid rgba(168, 85, 247, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+}
+
+.worker-hero-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.worker-hero-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 3px;
+  font-family: var(--font-mono);
+}
+
+.runtime-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.runtime-live-pill.running {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.runtime-live-pill.idle {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+/* Step Pipeline Node Graph */
+.node-graph {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 0;
+}
+
+.node-step {
+  flex: 1;
+  min-width: 130px;
+  background: rgba(13, 19, 30, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.node-step.active {
+  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(16, 27, 44, 0.95);
+  box-shadow: 0 0 12px rgba(56, 189, 248, 0.15);
+}
+
+.node-step-num {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.node-step-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.node-step-desc {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+}
+
+.node-sep {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* Bento Stats */
+.worker-bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 768px) {
+  .worker-bento-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.bento-card {
+  background: rgba(13, 19, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bento-card-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.bento-card-val {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.bento-card-sub {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* Specs & Terminal */
+.worker-details-split {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 800px) {
+  .worker-details-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.spec-list {
+  background: rgba(13, 19, 30, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.spec-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.spec-row-k {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.spec-row-v {
+  font-size: 0.78rem;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  word-break: break-all;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.terminal-box {
+  background: #05080e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: var(--font-mono);
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
+
+.terminal-body {
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.terminal-log-line {
+  word-break: break-all;
+}
+
+.log-hl {
+  color: #38bdf8;
+}
+.log-success {
+  color: #34d399;
+}
+.log-warn {
+  color: #fbbf24;
+}
+
+</style>
+
+</head>
+<body>
+
+<!-- Header -->
+<header class="app-header">
+  <div class="header-inner">
+    <div class="brand-group">
+      <div class="brand-icon-box">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+          <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+          <line x1="6" y1="6" x2="6.01" y2="6"></line>
+          <line x1="6" y1="18" x2="6.01" y2="18"></line>
+        </svg>
+      </div>
+      <div class="brand-text">
+        SOCKS5 Router
+        <span class="status-pill"><span class="pulse-dot"></span> Online</span>
+      </div>
+    </div>
+
+    <div class="header-tools">
+      <div class="listen-badge" onclick="copyText('{{if .ListenAddr}}{{.ListenAddr}}{{else}}127.0.0.1:1080{{end}}', 'Local SOCKS5 endpoint copied!')" title="Click to copy local listen address">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+        <span id="nav-endpoint">{{if .ListenAddr}}{{.ListenAddr}}{{else}}127.0.0.1:1080{{end}}</span>
+      </div>
+
+      <button id="btn-test-route" class="btn btn-success" onclick="testActiveRoute()" title="Test Google HTTPS TLS Handshake">
+        <svg id="ico-test" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+        <span id="txt-test">Test Route</span>
+      </button>
+
+      
+      <button id="btn-show-flow" class="btn btn-purple" onclick="openFlowModal()" title="Xem sơ đồ & quy trình crawl proxy">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="18" cy="5" r="3"></circle>
+          <circle cx="6" cy="12" r="3"></circle>
+          <circle cx="18" cy="19" r="3"></circle>
+          <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+          <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+        </svg>
+        <span>Crawler Flow</span>
+      </button>
+
+      <button id="btn-refresh-pool"
+ class="btn btn-primary" onclick="triggerPoolRefresh()">
+        <svg id="ico-refresh" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"></polyline>
+          <polyline points="1 20 1 14 7 14"></polyline>
+          <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+        </svg>
+        <span id="txt-refresh">Refresh</span>
+      </button>
+
+      <a href="/api/export" class="btn btn-ghost" title="Export as text list">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        Export
+      </a>
+
+      <a href="https://github.com/Dreamy-rain/socks5-proxy" target="_blank" rel="noopener" class="btn btn-ghost" title="GitHub">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+          <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+        </svg>
+      </a>
+    </div>
+  </div>
+</header>
+
+<!-- Active Tunnel Pinned Top Bar -->
+<section class="tunnel-bar">
+  <div class="tunnel-inner">
+    <div class="tunnel-left">
+      <span class="tunnel-status-chip">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        SOCKS5 Gateway
+      </span>
+      <div class="tunnel-main-addr">
+        <span id="gateway-addr-display">160.187.229.140:1080</span>
+        <button class="btn btn-ghost" style="padding:2px 7px;font-size:0.7rem;" onclick="copyActiveProxy()" title="Copy Gateway SOCKS5 URL">Copy</button>
+      </div>
+      <div class="tunnel-loc" style="display:flex;align-items:center;gap:6px;font-size:0.8rem;margin-top:2px;">
+        <span style="opacity:0.65;">Current Exit IP:</span>
+        <span class="flag-emoji" id="active-flag-emoji">🌐</span>
+        <span id="active-addr-display" style="font-weight:600;">{{.ActiveProxy}}</span>
+        <span id="active-geo-display" style="opacity:0.85;">({{.ActiveRegion}})</span>
+      </div>
+    </div>
+
+    <div class="tunnel-right">
+      <div id="active-latency-display">
+        {{if gt .ActiveLatencyMs 0}}
+        <span class="latency-pill {{if lt .ActiveLatencyMs 500}}latency-fast{{else if lt .ActiveLatencyMs 1200}}latency-mid{{else}}latency-slow{{end}}">
+          ⚡ {{.ActiveLatencyMs}} ms
+        </span>
+        {{end}}
+      </div>
+      <button class="btn btn-ghost" onclick="rotateNextProxy()" title="Switch to next proxy in pool">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 3 21 3 21 8"></polyline><line x1="4" y1="20" x2="21" y2="3"></line><polyline points="21 16 21 21 16 21"></polyline><line x1="15" y1="15" x2="21" y2="21"></line><line x1="4" y1="4" x2="9" y2="9"></line></svg>
+        Rotate Route
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Main Workspace -->
+<main class="app-layout">
+  <!-- Left Console -->
+  <aside class="sidebar">
+    <!-- Pool Health & Stats -->
+    <div class="console-card">
+      <div class="card-title-row">
+        <span class="card-heading">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+          Pool Metrics
+        </span>
+        <span style="font-size:0.72rem;color:var(--text-muted);" id="country-count-val">{{.CountriesCount}} countries</span>
+      </div>
+
+      <div class="stat-grid-compact">
+        <div class="stat-box">
+          <div class="stat-box-label">Verified Alive</div>
+          <div class="stat-box-val" id="total-val">{{.Total}} <small>live</small></div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-box-label">Lowest Ping</div>
+          <div class="stat-box-val" id="fastest-val">{{if gt .FastestLatencyMs 0}}{{.FastestLatencyMs}}<small>ms</small>{{else}}-{{end}}</div>
+        </div>
+      </div>
+
+      <div class="progress-track" title="Latency Distribution">
+        <div class="fill-item fill-green" id="bar-green" style="width:40%"></div>
+        <div class="fill-item fill-amber" id="bar-amber" style="width:40%"></div>
+        <div class="fill-item fill-rose" id="bar-rose" style="width:20%"></div>
+      </div>
+
+      <div class="countdown-bar">
+        <span style="color:var(--text-muted)">Next Auto Scrape:</span>
+        <span class="countdown-time" id="countdown-val">--:--</span>
+      </div>
+    </div>
+
+    <!-- Quick Integrations -->
+    <div class="console-card">
+      <div class="card-title-row">
+        <span class="card-heading">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Client Snippets
+        </span>
+      </div>
+
+      <div class="snippet-tabs">
+        <button class="tab-btn active" onclick="pickSnippetTab('curl', this)">cURL</button>
+        <button class="tab-btn" onclick="pickSnippetTab('python', this)">Python</button>
+        <button class="tab-btn" onclick="pickSnippetTab('env', this)">Env</button>
+        <button class="tab-btn" onclick="pickSnippetTab('git', this)">Git</button>
+        <button class="tab-btn" onclick="pickSnippetTab('telegram', this)">Telegram</button>
+      </div>
+
+      <div class="code-field">
+        <span id="snippet-display">curl -x socks5h://127.0.0.1:1080 https://api.ipify.org</span>
+        <button class="btn btn-ghost" style="padding:2px 7px;font-size:0.7rem;" onclick="copyActiveSnippet()">Copy</button>
+      </div>
+    </div>
+
+    <!-- Activity Log -->
+    <div class="console-card">
+      <div class="card-title-row">
+        <span class="card-heading">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          Activity Stream
+        </span>
+      </div>
+      <div class="log-stream" id="log-list">
+        {{if .Logs}}
+          {{range .Logs}}
+          <div class="log-item">
+            <span class="log-time">{{.Time}}</span>
+            <span class="log-badge-{{.Type}}">•</span>
+            <span>{{.Message}}</span>
+          </div>
+          {{end}}
+        {{else}}
+          <div class="log-item" style="color:var(--text-muted)">Waiting for events...</div>
+        {{end}}
+      </div>
+    </div>
+  </aside>
+
+  <!-- Right Explorer -->
+  <section class="explorer-panel">
+    <div class="explorer-toolbar">
+      <div class="search-wrap">
+        <svg class="search-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        <input type="text" id="proxy-search" class="search-box-input" placeholder="Search IP, Port, Country, City..." oninput="handleSearchInput(this.value)">
+        <button id="clear-search-btn" class="clear-ico" onclick="resetSearch()">✕</button>
+      </div>
+
+      <div class="filter-set">
+        <button class="filter-chip active" onclick="changeFilter('all', this)">All (<span id="all-count-badge">{{.Total}}</span>)</button>
+        <button class="filter-chip" onclick="changeFilter('fast', this)">⚡ Fast &lt;500ms</button>
+        <button class="filter-chip" onclick="changeFilter('mid', this)">Normal &lt;1.2s</button>
+        <button class="filter-chip" onclick="changeFilter('slow', this)">Standard</button>
+
+        <div class="view-segment">
+          <button class="segment-btn active" id="btn-mode-card" onclick="switchViewMode('card')" title="Card View">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+          </button>
+          <button class="segment-btn" id="btn-mode-table" onclick="switchViewMode('table')" title="Dense Table View">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Proxy List View -->
+    <div id="proxy-render-target">
+      <div class="proxies-stack" id="card-stack-view">
+        {{if .Proxies}}
+          {{range .Proxies}}
+          <div class="proxy-card-item{{if .Active}} active{{end}}" onclick="routeToProxy({{.Index}}, this)">
+            <div class="card-left">
+              <span class="card-idx">#{{.Index}}</span>
+              <div class="card-center">
+                <div class="card-addr-line">
+                  <span class="card-addr">{{.Addr}}</span>
+                  <span class="latency-pill {{if lt .LatencyMs 500}}latency-fast{{else if lt .LatencyMs 1200}}latency-mid{{else}}latency-slow{{end}}">
+                    {{.LatencyMs}} ms
+                  </span>
+                </div>
+                <div class="card-meta-line">
+                  <span>{{.Country}}{{if .City}}, {{.City}}{{end}}</span>
+                </div>
+              </div>
+            </div>
+            <div class="card-right">
+              <button class="switch-cta-btn">{{if .Active}}IN USE{{else}}Switch Route{{end}}</button>
+            </div>
+          </div>
+          {{end}}
+        {{else}}
+          <div class="no-data">
+            <div class="no-data-title">Scanning candidate proxies...</div>
+            <p>Live proxies passing TLS connectivity will appear automatically.</p>
+          </div>
+        {{end}}
+      </div>
+    </div>
+  </section>
+</main>
+
+
+<!-- Crawler Architecture & Flow Modal -->
+<div class="modal-overlay" id="crawler-flow-modal" onclick="if(event.target===this) closeFlowModal()">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title-group">
+        <div class="modal-title-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+        </div>
+        <div class="modal-title-text">
+          <h3>🛰️ SOCKS5 Proxy Pipeline & Crawler Architecture</h3>
+          <p>Hệ thống tự động 24/7: Cào đa nguồn phân trang ➔ Pre-check TLS Google ➔ Bơm thời gian thực vào Router</p>
+        </div>
+      </div>
+      <button class="modal-close-btn" onclick="closeFlowModal()" title="Đóng (Esc)">✕</button>
+    </div>
+
+    <div class="modal-body">
+      
+      <!-- VIEW 1: Overview Architecture -->
+      <div id="flow-overview-view">
+      <!-- 3-Column Visual Pipeline -->
+      <div class="pipeline-flow">
+        
+        <!-- Column 1: 9 Crawlers -->
+        <div class="pipe-col">
+          <div class="pipe-col-header">
+            <span class="pipe-col-title" style="color: #c084fc;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 14 14"></polyline></svg>
+              9 Crawler Workers
+            </span>
+            <span class="pipe-badge pipe-badge-purple">Page 1 ➔ N</span>
+          </div>
+
+                    <div class="worker-grid">
+            <div class="worker-card" onclick="openWorkerDetail('proxyscrape')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">⚡ ProxyScrape</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">v4 API · Page 1➔100+</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('geonode')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🌐 Geonode</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">REST · Page 1➔12</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('proxora')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🚀 Proxora.io</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">API · Page 1➔5</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('proxy_free')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🛡️ Proxy-Free</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">JSON · Verified 50</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('freeproxy')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🔥 FreeProxy.World</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">HTML · Page 1➔15</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('fineproxy')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">📊 FineProxy</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">Table · 1,000+ IPs</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('proxify')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🇻🇳 Proxify.vn</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">Verified SSL API</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('monosans')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">📦 Monosans Feed</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">GitHub Raw Live</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('socks5_github')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">🔗 socks5-proxy</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">Static Backup</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrow 1 -->
+        <div class="pipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+
+        <!-- Column 2: Controller & Checker -->
+        <div class="pipe-col">
+          <div class="pipe-col-header">
+            <span class="pipe-col-title" style="color: #38bdf8;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+              Harvester Master
+            </span>
+            <span class="pipe-badge pipe-badge-blue">Pre-Filter</span>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">1. Deduplication Queue</div>
+            <div class="step-box-desc">Khử trùng toàn bộ IP giữa 9 nguồn qua bảng băm bộ nhớ (seen_in_cycle).</div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">2. Google TLS Handshake</div>
+            <div class="step-box-desc">Chạy 35 luồng song song kết nối google.com:443 (timeout 2.5s). Chỉ giữ proxy hỗ trợ SSL/TLS.</div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">3. Fast Pruning & Latency</div>
+            <div class="step-box-desc">Loại bỏ lập tức IP chết hoặc timeout. Tính toán chính xác độ trễ Ping (ms).</div>
+          </div>
+
+          <div class="step-box" style="border-color: rgba(16, 185, 129, 0.4);">
+            <div class="step-box-title" style="color: #34d399;">4. Streaming Dispatch</div>
+            <div class="step-box-desc">Cào xong page nào là gom batch 20-50 con sống bắn ngay qua POST /api/feed.</div>
+          </div>
+        </div>
+
+        <!-- Arrow 2 -->
+        <div class="pipe-arrow">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </div>
+
+        <!-- Column 3: SOCKS5 Router -->
+        <div class="pipe-col">
+          <div class="pipe-col-header">
+            <span class="pipe-col-title" style="color: #34d399;">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"></rect><rect x="2" y="14" width="20" height="8" rx="2"></rect></svg>
+              SOCKS5 Proxy Router
+            </span>
+            <span class="pipe-badge pipe-badge-green">Gateway :1080</span>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">📥 Ingest Endpoint</div>
+            <div class="step-box-desc">POST /api/feed nạp proxy sạch vào bộ nhớ mà không làm đứt kết nối client.</div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">⚡ Latency-Sorted Pool</div>
+            <div class="step-box-desc">Tự động sắp xếp từ nhanh đến chậm. Luôn đưa proxy nhanh nhất lên đầu (Active Route).</div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">🐕 25s Proactive Watchdog</div>
+            <div class="step-box-desc">Kiểm tra con active mỗi 25s. Nếu chết -> cắt bỏ & thăng hạng con kế tiếp trong 0.05s.</div>
+          </div>
+
+          <div class="step-box">
+            <div class="step-box-title">🔄 Rotation & Failover</div>
+            <div class="step-box-desc">Tự đổi IP mỗi 3-6 phút, tự động retry 3 lần nếu upstream đứt, fallback direct VPS.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Bottom Specs Banner -->
+      <div class="spec-banner">
+        <div class="spec-item">
+          <span>SOCKS5 Gateway</span>
+          <span style="color: #34d399;">160.187.229.140:1080</span>
+        </div>
+        <div class="spec-item">
+          <span>Crawler Cycle</span>
+          <span>Mỗi 10 phút (Lặp 24/7)</span>
+        </div>
+        <div class="spec-item">
+          <span>Pre-Check Target</span>
+          <span>google.com:443 (TLS)</span>
+        </div>
+        <div class="spec-item">
+          <span>Feed Protocol</span>
+          <span style="color: #38bdf8;">POST /api/feed (JSON)</span>
+        </div>
+        <div class="spec-item">
+          <span>Auto-Recovery</span>
+          <span style="color: #c084fc;">Docker restart: always</span>
+        </div>
+      </div>
+
+    </div><!-- /#flow-overview-view -->
+
+    <!-- VIEW 2: Dedicated Worker Runtime & Execution Inspector -->
+    <div id="flow-worker-view" class="worker-inspect-view" style="display: none;">
+      
+      <!-- Top Navigation & Worker Switcher -->
+      <div class="worker-nav-bar">
+        <button class="btn btn-ghost" onclick="showFlowOverview()" style="padding: 6px 12px; font-size: 0.76rem; border: 1px solid rgba(255,255,255,0.12);">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          Quay lại sơ đồ tổng thể (Overview)
+        </button>
+
+        <div class="worker-tabs-row" id="worker-tab-buttons">
+          <span class="worker-tab-chip active" onclick="switchWorkerTab('proxyscrape')">⚡ ProxyScrape</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('geonode')">🌐 Geonode</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('proxora')">🚀 Proxora</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('proxy_free')">🛡️ Proxy-Free</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('freeproxy')">🔥 FreeProxy.World</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('fineproxy')">📊 FineProxy</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('proxify')">🇻🇳 Proxify.vn</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('monosans')">📦 Monosans</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('socks5_github')">🔗 socks5-proxy</span>
+        </div>
+      </div>
+
+      <!-- Worker Hero Banner -->
+      <div class="worker-hero">
+        <div class="worker-hero-left">
+          <div class="worker-hero-icon" id="w-icon">⚡</div>
+          <div>
+            <div class="worker-hero-title">
+              <span id="w-name">ProxyScrape</span>
+              <span class="runtime-live-pill running" id="w-status-pill">
+                <span class="pulse-dot" style="background:#34d399;"></span>
+                <span id="w-status-txt">RUNNING RUNTIME</span>
+              </span>
+            </div>
+            <div class="worker-hero-sub" id="w-sub">API Endpoint Ingestion · Page 1 / 1</div>
+          </div>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-primary" onclick="copyWorkerEndpoint()" style="font-size:0.75rem;padding:6px 12px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+            Sao chép URL
+          </button>
+          <a id="w-link" href="#" target="_blank" rel="noopener" class="btn btn-ghost" style="font-size:0.75rem;padding:6px 12px;">
+            Mở trang gốc ↗
+          </a>
+        </div>
+      </div>
+
+      <!-- Runtime Step Node Flow -->
+      <div>
+        <div style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-bottom: 6px; letter-spacing: 0.04em;">
+          Sơ đồ thực thi Runtime (Pipeline Graph)
+        </div>
+        <div class="node-graph" id="w-node-graph">
+          <!-- Dynamically filled by JS -->
+        </div>
+      </div>
+
+      <!-- Bento 4 Metrics Grid -->
+      <div class="worker-bento-grid">
+        <div class="bento-card">
+          <span class="bento-card-label">Tiến độ phân trang</span>
+          <div class="bento-card-val" id="w-stat-page" style="color: #38bdf8;">Page 1 / 1</div>
+          <span class="bento-card-sub" id="w-stat-page-sub">Đã hoàn thành toàn bộ</span>
+        </div>
+        <div class="bento-card">
+          <span class="bento-card-label">Tổng IP cào được</span>
+          <div class="bento-card-val" id="w-stat-candidates">1,520</div>
+          <span class="bento-card-sub">Candidates chu kỳ hiện tại</span>
+        </div>
+        <div class="bento-card">
+          <span class="bento-card-label">Sống qua TLS 443</span>
+          <div class="bento-card-val" id="w-stat-alive" style="color: #34d399;">418 ALIVE</div>
+          <span class="bento-card-sub" id="w-stat-alive-sub">Tỉ lệ sống: 27.5%</span>
+        </div>
+        <div class="bento-card">
+          <span class="bento-card-label">Độ trễ trung bình</span>
+          <div class="bento-card-val" id="w-stat-latency" style="color: #fbbf24;">310 ms</div>
+          <span class="bento-card-sub">Google HTTPS Handshake</span>
+        </div>
+      </div>
+
+      <!-- Technical Specifications & Live Terminal -->
+      <div class="worker-details-split">
+        <div class="spec-list">
+          <div style="font-size: 0.74rem; font-weight: 700; color: #fff; margin-bottom: 4px; display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            Thông số kỹ thuật con Crawler
+          </div>
+
+          <div class="spec-row">
+            <span class="spec-row-k">Endpoint URL</span>
+            <div class="spec-row-v" id="w-spec-url">https://api.proxyscrape.com/...</div>
+          </div>
+
+          <div class="spec-row">
+            <span class="spec-row-k">Giao thức & Dữ liệu</span>
+            <div class="spec-row-v" id="w-spec-proto">SOCKS5 · Raw Text List</div>
+          </div>
+
+          <div class="spec-row">
+            <span class="spec-row-k">Cơ chế phân trang (Pagination)</span>
+            <div class="spec-row-v" id="w-spec-paging">Loop ?page={n} (1 -> 10)</div>
+          </div>
+
+          <div class="spec-row">
+            <span class="spec-row-k">Bộ lọc TLS Pre-Check</span>
+            <div class="spec-row-v">35 Concurrent Threads · Timeout 2.5s · google.com:443</div>
+          </div>
+
+          <div class="spec-row">
+            <span class="spec-row-k">Trạng thái hiện tại</span>
+            <div class="spec-row-v" id="w-spec-step" style="color: #38bdf8;">Đang chờ chu kỳ tiếp theo</div>
+          </div>
+        </div>
+
+        <div class="terminal-box">
+          <div class="terminal-header">
+            <span>● RUNTIME CONSOLE LOG</span>
+            <span id="w-term-time">Cập nhật: 15:30:12</span>
+          </div>
+          <div class="terminal-body" id="w-term-logs">
+            <div class="terminal-log-line">[15:30:10] Khởi động crawler ProxyScrape...</div>
+            <div class="terminal-log-line">[15:30:11] HTTP 200 OK — Nhận về 1,520 candidate IPs</div>
+            <div class="terminal-log-line">[15:30:13] 35 luồng bắt tay TLS google.com:443</div>
+            <div class="terminal-log-line log-success">[15:30:14] ✅ Đã lọc 418 proxy sống (avg 310ms) -> Stream sang Router</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /#flow-worker-view -->
+
+    </div>
+  </div>
+</div>
+
+<!-- Toast Shelf -->
+
+<div class="toast-box" id="toast-shelf"></div>
+
+<script>
+let appState = null;
+let activeFilter = 'all';
+let searchKeyword = '';
+let currentViewMode = 'card';
+let selectedSnippet = 'curl';
+let nextScrapeStamp = {{if .NextScrapeUnix}}{{.NextScrapeUnix}}{{else}}0{{end}};
+
+document.addEventListener('DOMContentLoaded', () => {
+  setupCountdown();
+  updateFlagEmoji('{{.ActiveCountryCode}}');
+  // Background live poll (4 seconds)
+  setInterval(refreshStatusFeed, 4000);
+});
+
+function getFlagEmoji(countryCode) {
+  if (!countryCode || countryCode.length !== 2) return '🌐';
+  const codePoints = countryCode
+    .toUpperCase()
+    .split('')
+    .map(char => 127397 + char.charCodeAt());
+  return String.fromCodePoint(...codePoints);
+}
+
+function updateFlagEmoji(code) {
+  const el = document.getElementById('active-flag-emoji');
+  if (el) el.textContent = getFlagEmoji(code);
+}
+
+function refreshStatusFeed() {
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(data => {
+      appState = data;
+      nextScrapeStamp = data.next_scrape_unix;
+      renderApp(data);
+    })
+    .catch(err => console.debug('Sync feed notice:', err));
+}
+
+function renderApp(d) {
+  if (d.listen_addr) {
+    const navEp = document.getElementById('nav-endpoint');
+    if (navEp) navEp.textContent = d.listen_addr;
+  }
+
+  // Active tunnel bar
+  const addrDisplay = document.getElementById('active-addr-display');
+  if (addrDisplay) addrDisplay.textContent = d.active_proxy;
+
+  const geoDisplay = document.getElementById('active-geo-display');
+  if (geoDisplay) geoDisplay.textContent = d.active_region;
+
+  updateFlagEmoji(d.active_country_code);
+
+  const latDisplay = document.getElementById('active-latency-display');
+  if (latDisplay && d.active_latency_ms > 0) {
+    const latClass = d.active_latency_ms < 500 ? 'latency-fast' : (d.active_latency_ms < 1200 ? 'latency-mid' : 'latency-slow');
+    latDisplay.innerHTML = '<span class="latency-pill ' + latClass + '">⚡ ' + d.active_latency_ms + ' ms</span>';
+  }
+
+  // Sidebar stats
+  const totalVal = document.getElementById('total-val');
+  if (totalVal) totalVal.innerHTML = d.total + ' <small>live</small>';
+
+  const fastestVal = document.getElementById('fastest-val');
+  if (fastestVal) fastestVal.innerHTML = (d.fastest_latency_ms > 0 ? d.fastest_latency_ms + '<small>ms</small>' : '-');
+
+  const countryCount = document.getElementById('country-count-val');
+  if (countryCount) countryCount.textContent = d.countries_count + ' countries';
+
+  const allBadge = document.getElementById('all-count-badge');
+  if (allBadge) allBadge.textContent = d.total;
+
+  // Meter bar
+  if (d.total > 0) {
+    const fPct = ((d.fast_count || 0) / d.total) * 100;
+    const mPct = ((d.mid_count || 0) / d.total) * 100;
+    const sPct = ((d.slow_count || 0) / d.total) * 100;
+    const bg = document.getElementById('bar-green');
+    if (bg) bg.style.width = fPct + '%';
+    const ba = document.getElementById('bar-amber');
+    if (ba) ba.style.width = mPct + '%';
+    const br = document.getElementById('bar-rose');
+    if (br) br.style.width = sPct + '%';
+  }
+
+  // Update logs
+  if (d.logs) {
+    const logList = document.getElementById('log-list');
+    if (logList) {
+      let logHtml = '';
+      d.logs.forEach(l => {
+        logHtml += '<div class="log-item">' +
+          '<span class="log-time">' + escapeHtml(l.time) + '</span>' +
+          '<span class="log-badge-' + escapeHtml(l.type) + '">•</span>' +
+          '<span>' + escapeHtml(l.message) + '</span>' +
+        '</div>';
+      });
+      logList.innerHTML = logHtml;
+    }
+  }
+
+  renderExplorer(d.proxies);
+}
+
+function renderExplorer(proxies) {
+  const target = document.getElementById('proxy-render-target');
+  if (!target) return;
+
+  if (!proxies || proxies.length === 0) {
+    target.innerHTML = '<div class="no-data"><div class="no-data-title">No proxies available</div><p>Click "Refresh" to scan candidate proxies.</p></div>';
+    return;
+  }
+
+  const q = searchKeyword.toLowerCase().trim();
+  const filtered = proxies.filter(p => {
+    if (activeFilter === 'fast' && p.latency_ms >= 500) return false;
+    if (activeFilter === 'mid' && (p.latency_ms < 500 || p.latency_ms >= 1200)) return false;
+    if (activeFilter === 'slow' && p.latency_ms < 1200) return false;
+
+    if (q) {
+      const matchA = p.addr.toLowerCase().includes(q);
+      const matchC = (p.country || '').toLowerCase().includes(q);
+      const matchCity = (p.city || '').toLowerCase().includes(q);
+      return matchA || matchC || matchCity;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    target.innerHTML = '<div class="no-data"><div class="no-data-title">No matching proxies</div><p>Try clearing your search query or filter tags.</p></div>';
+    return;
+  }
+
+  if (currentViewMode === 'table') {
+    let html = '<div class="dense-table-wrap"><table class="compact-table"><thead><tr>' +
+      '<th>#</th><th>Flag</th><th>SOCKS5 Address</th><th>Location</th><th>Latency</th><th>Action</th></tr></thead><tbody>';
+    filtered.forEach(p => {
+      const latClass = p.latency_ms < 500 ? 'latency-fast' : (p.latency_ms < 1200 ? 'latency-mid' : 'latency-slow');
+      const activeClass = p.active ? ' class="active"' : '';
+      const btnText = p.active ? 'IN USE' : 'Switch';
+      const loc = p.city ? (p.country + ', ' + p.city) : (p.country || 'Unknown');
+      const flag = getFlagEmoji(p.country_code);
+
+      html += '<tr' + activeClass + ' onclick="routeToProxy(' + p.index + ', this)">' +
+        '<td style="font-family:var(--font-mono);color:var(--text-muted)">#' + p.index + '</td>' +
+        '<td><span class="flag-emoji">' + flag + '</span></td>' +
+        '<td><span style="font-family:var(--font-mono);font-weight:600;color:#fff">' + escapeHtml(p.addr) + '</span></td>' +
+        '<td>' + escapeHtml(loc) + '</td>' +
+        '<td><span class="latency-pill ' + latClass + '">' + p.latency_ms + ' ms</span></td>' +
+        '<td><button class="switch-cta-btn">' + btnText + '</button></td>' +
+      '</tr>';
+    });
+    html += '</tbody></table></div>';
+    target.innerHTML = html;
+  } else {
+    let html = '<div class="proxies-stack">';
+    filtered.forEach(p => {
+      const latClass = p.latency_ms < 500 ? 'latency-fast' : (p.latency_ms < 1200 ? 'latency-mid' : 'latency-slow');
+      const activeClass = p.active ? ' active' : '';
+      const btnText = p.active ? 'IN USE' : 'Switch Route';
+      const loc = p.city ? (p.country + ', ' + p.city) : (p.country || 'Unknown');
+      const flag = getFlagEmoji(p.country_code);
+
+      html += '<div class="proxy-card-item' + activeClass + '" onclick="routeToProxy(' + p.index + ', this)">' +
+        '<div class="card-left">' +
+          '<span class="card-idx">#' + p.index + '</span>' +
+          '<span class="flag-emoji">' + flag + '</span>' +
+          '<div class="card-center">' +
+            '<div class="card-addr-line">' +
+              '<span class="card-addr">' + escapeHtml(p.addr) + '</span>' +
+              '<span class="latency-pill ' + latClass + '">' + p.latency_ms + ' ms</span>' +
+            '</div>' +
+            '<div class="card-meta-line">' +
+              '<span>' + escapeHtml(loc) + '</span>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card-right">' +
+          '<button class="switch-cta-btn">' + btnText + '</button>' +
+        '</div>' +
+      '</div>';
+    });
+    html += '</div>';
+    target.innerHTML = html;
+  }
+}
+
+function handleSearchInput(val) {
+  searchKeyword = val;
+  const clearBtn = document.getElementById('clear-search-btn');
+  if (clearBtn) clearBtn.style.display = val ? 'block' : 'none';
+  if (appState) renderExplorer(appState.proxies);
+}
+
+function resetSearch() {
+  const inp = document.getElementById('proxy-search');
+  if (inp) inp.value = '';
+  handleSearchInput('');
+}
+
+function changeFilter(f, btn) {
+  activeFilter = f;
+  document.querySelectorAll('.filter-chip').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (appState) renderExplorer(appState.proxies);
+}
+
+function switchViewMode(mode) {
+  currentViewMode = mode;
+  document.getElementById('btn-mode-card').classList.toggle('active', mode === 'card');
+  document.getElementById('btn-mode-table').classList.toggle('active', mode === 'table');
+  if (appState) renderExplorer(appState.proxies);
+}
+
+function routeToProxy(idx, el) {
+  if (el && el.classList.contains('active')) return;
+  if (el) el.style.opacity = '0.5';
+
+  fetch('/api/switch?index=' + idx)
+    .then(r => r.json())
+    .then(res => {
+      if (res.status === 'ok') {
+        showToast('Switched to #' + idx + ' (' + (res.proxy || 'active') + ')');
+        refreshStatusFeed();
+      } else {
+        if (el) el.style.opacity = '1';
+        showToast('Switch error: ' + (res.status || 'unknown'));
+      }
+    })
+    .catch(() => {
+      if (el) el.style.opacity = '1';
+      showToast('Network error during switch');
+    });
+}
+
+function rotateNextProxy() {
+  fetch('/api/switch')
+    .then(r => r.json())
+    .then(res => {
+      if (res.status === 'ok') {
+        showToast('Rotated to route: ' + res.proxy);
+        refreshStatusFeed();
+      } else {
+        showToast('Rotate failed: ' + (res.status || 'No proxies'));
+      }
+    })
+    .catch(() => showToast('Rotation request failed'));
+}
+
+function testActiveRoute() {
+  const btn = document.getElementById('btn-test-route');
+  const ico = document.getElementById('ico-test');
+  const txt = document.getElementById('txt-test');
+
+  if (btn) btn.disabled = true;
+  if (txt) txt.textContent = 'Testing...';
+  if (ico) ico.classList.add('icon-spin');
+
+  fetch('/api/test')
+    .then(r => r.json())
+    .then(res => {
+      if (btn) btn.disabled = false;
+      if (ico) ico.classList.remove('icon-spin');
+      if (txt) txt.textContent = 'Test Route';
+
+      if (res.status === 'ok') {
+        showToast('Route Verified! Ping: ' + res.latency_ms + ' ms (' + res.country + ')');
+        refreshStatusFeed();
+      } else {
+        showToast('Route check failed: ' + (res.message || 'unreachable'));
+      }
+    })
+    .catch(() => {
+      if (btn) btn.disabled = false;
+      if (ico) ico.classList.remove('icon-spin');
+      if (txt) txt.textContent = 'Test Route';
+      showToast('Health test failed');
+    });
+}
+
+function triggerPoolRefresh() {
+  const btn = document.getElementById('btn-refresh-pool');
+  const ico = document.getElementById('ico-refresh');
+  const txt = document.getElementById('txt-refresh');
+
+  if (btn) btn.disabled = true;
+  if (ico) ico.classList.add('icon-spin');
+  if (txt) txt.textContent = 'Scanning...';
+
+  showToast('Scraping & testing fresh proxies (~10s)...');
+
+  fetch('/api/refresh', { method: 'POST' })
+    .then(() => {
+      setTimeout(() => {
+        refreshStatusFeed();
+        if (btn) btn.disabled = false;
+        if (ico) ico.classList.remove('icon-spin');
+        if (txt) txt.textContent = 'Refresh';
+        showToast('Proxy pool refresh completed!');
+      }, 10000);
+    })
+    .catch(() => {
+      if (btn) btn.disabled = false;
+      if (ico) ico.classList.remove('icon-spin');
+      if (txt) txt.textContent = 'Refresh';
+      showToast('Refresh failed to trigger');
+    });
+}
+
+function copyActiveProxy() {
+  const host = window.location.hostname || '160.187.229.140';
+  const u = (appState && appState.auth_user) ? appState.auth_user : '';
+  const p = (appState && appState.auth_pass) ? appState.auth_pass : '';
+  const auth = u ? (encodeURIComponent(u) + ':' + encodeURIComponent(p) + '@') : '';
+  const url = 'socks5h://' + auth + host + ':1080';
+  copyText(url, 'Gateway SOCKS5 copied: ' + url);
+}
+
+function copyText(str, msg) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(str).then(() => showToast(msg || 'Copied to clipboard!'));
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = str;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast(msg || 'Copied to clipboard!');
+  }
+}
+
+function showToast(msg) {
+  const shelf = document.getElementById('toast-shelf');
+  if (!shelf) return;
+  const t = document.createElement('div');
+  t.className = 'toast-pill';
+  t.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2.5"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>' +
+    '<span>' + escapeHtml(msg) + '</span>';
+  shelf.appendChild(t);
+  setTimeout(() => {
+    if (t.parentNode) t.parentNode.removeChild(t);
+  }, 2900);
+}
+
+function pickSnippetTab(type, btn) {
+  selectedSnippet = type;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const host = window.location.hostname || '160.187.229.140';
+  const u = (appState && appState.auth_user) ? appState.auth_user : '';
+  const p = (appState && appState.auth_pass) ? appState.auth_pass : '';
+  const auth = u ? (encodeURIComponent(u) + ':' + encodeURIComponent(p) + '@') : '';
+  const ep = auth + host + ':1080';
+  const val = document.getElementById('snippet-display');
+  if (!val) return;
+
+  if (type === 'curl') {
+    val.textContent = 'curl -x socks5h://' + ep + ' https://api.ipify.org';
+  } else if (type === 'python') {
+    val.textContent = "proxies = {'http': 'socks5h://" + ep + "', 'https': 'socks5h://" + ep + "'}";
+  } else if (type === 'env') {
+    val.textContent = 'export ALL_PROXY=socks5://' + ep;
+  } else if (type === 'git') {
+    val.textContent = 'git config --global http.proxy socks5://' + ep;
+  } else if (type === 'telegram') {
+    val.textContent = 'tg://socks?server=' + host + '&port=1080' + (u ? ('&user=' + encodeURIComponent(u) + '&pass=' + encodeURIComponent(p)) : '');
+  }
+}
+
+function copyActiveSnippet() {
+  const v = document.getElementById('snippet-display');
+  if (v) copyText(v.textContent, 'Snippet copied to clipboard!');
+}
+
+function setupCountdown() {
+  setInterval(() => {
+    const el = document.getElementById('countdown-val');
+    if (!el || !nextScrapeStamp) return;
+    const diff = nextScrapeStamp - Math.floor(Date.now() / 1000);
+    if (diff <= 0) {
+      el.textContent = 'Scraping...';
+      return;
+    }
+    const m = Math.floor(diff / 60);
+    const s = diff % 60;
+    el.textContent = (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
+  }, 1000);
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>"']/g, function(m) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m];
+  });
+}
+
+
+// ---------------- Worker Runtime Inspection Logic ----------------
+let currentInspectedWorker = 'proxyscrape';
+let harvesterTelemetry = {};
+
+const WORKER_SPECS = {
+  'proxyscrape': {
+    id: 'proxyscrape',
+    name: 'ProxyScrape',
+    icon: '⚡',
+    url: 'https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&protocol=socks5&proxy_format=protocolipport&format=json&limit=50&skip=0',
+    sub: 'v4 REST API Pagination (100+ trang · 50 IPs/trang)',
+    proto: 'SOCKS5 · v4 JSON Pagination (~5,120 proxies)',
+    paging: 'Page 1 ➔ 100+ (skip offset = (page-1) * 50)',
+    steps: [
+      { num: '01', title: 'HTTP GET v4 API', desc: 'Gọi endpoint v4 với ?limit=50&skip={n}' },
+      { num: '02', title: 'Paging Loop', desc: 'Duyệt lần lượt từ Page 1 đến Page 100+' },
+      { num: '03', title: 'Memory Dedup', desc: 'Khử trùng qua bảng băm seen_in_cycle' },
+      { num: '04', title: 'Google TLS 443', desc: '35 luồng bắt tay TLS timeout 2.5s' },
+      { num: '05', title: 'Stream Router', desc: 'Bơm trực tiếp vào Router pool qua /api/feed' }
+    ]
+  },
+  'geonode': {
+    id: 'geonode',
+    name: 'Geonode',
+    icon: '🌐',
+    url: 'https://proxylist.geonode.com/api/proxy-list?protocols=socks5&limit=100&page=1&sort_by=lastChecked&sort_type=desc',
+    sub: 'REST API Pagination (100 IPs/trang)',
+    proto: 'SOCKS5 · JSON Objects with Latency & Country',
+    paging: 'Page 1 ➔ 12 (100 proxies/trang · ~1,192 IPs)',
+    steps: [
+      { num: '01', title: 'Loop Page 1..12', desc: 'Tăng tham số ?page={n} &limit=100' },
+      { num: '02', title: 'JSON Mapping', desc: 'Trích xuất ip, port, country, city' },
+      { num: '03', title: 'Memory Dedup', desc: 'Lọc bỏ IP đã tồn tại trong chu kỳ' },
+      { num: '04', title: 'Google TLS 443', desc: 'Kiểm tra SSL handshake thời gian thực' },
+      { num: '05', title: 'Batch Feed', desc: 'Stream từng trang sống sang Router' }
+    ]
+  },
+  'proxora': {
+    id: 'proxora',
+    name: 'Proxora.io',
+    icon: '🚀',
+    url: 'https://api.proxora.io/v1/proxies?type=socks5&page=1',
+    sub: 'Paginated JSON API Engine',
+    proto: 'SOCKS5 · REST API Response',
+    paging: 'Page 1 ➔ 5 (50 IPs/trang)',
+    steps: [
+      { num: '01', title: 'REST API Call', desc: 'Gọi endpoint Proxora theo từng trang' },
+      { num: '02', title: 'Payload Decode', desc: 'Giải mã danh sách proxy mảng JSON' },
+      { num: '03', title: 'Deduplication', desc: 'So khớp IP trong chu kỳ' },
+      { num: '04', title: 'TLS Handshake', desc: 'Test cổng 443 Google đa luồng' },
+      { num: '05', title: 'Stream Router', desc: 'Nạp các con vượt qua test vào Gateway' }
+    ]
+  },
+  'proxy_free': {
+    id: 'proxy_free',
+    name: 'Proxy-Free',
+    icon: '🛡️',
+    url: 'https://proxy-free.com/api/v1/proxies?protocol=socks5',
+    sub: 'High-Anonymity Verified API List',
+    proto: 'SOCKS5 · JSON Verified Fast Proxies',
+    paging: 'Live Verified List (Tập trung proxy chất lượng cao)',
+    steps: [
+      { num: '01', title: 'Fetch Verified', desc: 'Tải danh sách proxy đã được xác minh' },
+      { num: '02', title: 'JSON Extract', desc: 'Bóc tách IP và Port SOCKS5' },
+      { num: '03', title: 'Mem Dedup', desc: 'Khử trùng bộ nhớ' },
+      { num: '04', title: 'Google TLS 443', desc: 'Đo ping handshake thực tế' },
+      { num: '05', title: 'Fast Injection', desc: 'Đẩy vào pool với thứ hạng latency cao' }
+    ]
+  },
+  'freeproxy': {
+    id: 'freeproxy',
+    name: 'FreeProxy.World',
+    icon: '🔥',
+    url: 'https://www.freeproxy.world/?type=socks5&page=1',
+    sub: 'HTML Table & Firecrawl Markdown Parser',
+    proto: 'SOCKS5 · HTML DOM & Markdown Table Rows',
+    paging: 'Page 1 ➔ 15 (Web có 245 trang, cào 15 trang đầu mỗi chu kỳ)',
+    steps: [
+      { num: '01', title: 'Firecrawl/HTTP', desc: 'Tải nội dung trang phân trang 1..15' },
+      { num: '02', title: 'Table Parsing', desc: 'Regex bóc tách td.show-ip-div & href port' },
+      { num: '03', title: 'Dedup Filter', desc: 'Loại bỏ trùng lặp trong cycle' },
+      { num: '04', title: 'Google TLS 443', desc: '35 luồng kiểm tra kết nối SSL' },
+      { num: '05', title: 'Stream Router', desc: 'Stream từng trang qua /api/feed' }
+    ]
+  },
+  'fineproxy': {
+    id: 'fineproxy',
+    name: 'FineProxy',
+    icon: '📊',
+    url: 'https://fineproxy.org/free-proxy/',
+    sub: 'Public Table Scraping Engine',
+    proto: 'SOCKS5 · Table Structure Regex Parsing',
+    paging: 'Trang tổng hợp ~1,000 public proxies',
+    steps: [
+      { num: '01', title: 'Fetch HTML', desc: 'Tải DOM HTML bảng FineProxy' },
+      { num: '02', title: 'Regex Scanner', desc: 'Quét toàn bộ pattern IP:Port' },
+      { num: '03', title: 'Filter SOCKS5', desc: 'Lọc các con hỗ trợ giao thức SOCKS5' },
+      { num: '04', title: 'TLS 443 Pre-Check', desc: 'Loại bỏ các IP chết hoặc timeout' },
+      { num: '05', title: 'Pool Inject', desc: 'Nạp danh sách sống vào Router' }
+    ]
+  },
+  'proxify': {
+    id: 'proxify',
+    name: 'Proxify.vn',
+    icon: '🇻🇳',
+    url: 'https://proxify.vn/api/free-proxy?type=socks5',
+    sub: 'Vietnam & Regional Verified Proxy Engine',
+    proto: 'SOCKS5 · REST JSON Feed',
+    paging: 'Verified API Feed',
+    steps: [
+      { num: '01', title: 'API Ingest', desc: 'Gọi API Proxify lấy proxy sạch' },
+      { num: '02', title: 'JSON Mapping', desc: 'Map địa chỉ IP, Port và Quốc gia' },
+      { num: '03', title: 'Dedup Check', desc: 'Khử trùng bộ nhớ' },
+      { num: '04', title: 'Google TLS 443', desc: 'Kiểm tra độ trễ (thường cực thấp <250ms)' },
+      { num: '05', title: 'Stream Router', desc: 'Đưa vào vị trí ưu tiên trong pool' }
+    ]
+  },
+  'monosans': {
+    id: 'monosans',
+    name: 'Monosans Feed',
+    icon: '📦',
+    url: 'https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt',
+    sub: 'GitHub Raw Auto-Updated Stream',
+    proto: 'SOCKS5 · Raw Text Stream',
+    paging: 'Live Raw Feed từ kho lưu trữ GitHub',
+    steps: [
+      { num: '01', title: 'Raw HTTP GET', desc: 'Tải trực tiếp danh sách SOCKS5 mới nhất' },
+      { num: '02', title: 'Line Parser', desc: 'Tách dòng IP:Port' },
+      { num: '03', title: 'Dedup Check', desc: 'Khử trùng IP' },
+      { num: '04', title: 'Google TLS 443', desc: 'Kiểm tra 35 luồng handshake' },
+      { num: '05', title: 'Stream Router', desc: 'Bơm vào pool thời gian thực' }
+    ]
+  },
+  'socks5_github': {
+    id: 'socks5_github',
+    name: 'socks5-proxy',
+    icon: '🔗',
+    url: 'https://socks5-proxy.github.io/',
+    sub: 'Static Mirror Backup Repository',
+    proto: 'SOCKS5 · HTML / Static Text Mirror',
+    paging: 'Dự phòng tĩnh khi các nguồn khác bị nghẽn',
+    steps: [
+      { num: '01', title: 'Mirror Request', desc: 'Đọc trang mirror dự phòng' },
+      { num: '02', title: 'Text Parse', desc: 'Trích xuất IP:Port' },
+      { num: '03', title: 'Dedup Check', desc: 'Khử trùng bộ nhớ' },
+      { num: '04', title: 'Google TLS 443', desc: 'Bắt tay SSL 443' },
+      { num: '05', title: 'Stream Router', desc: 'Cung cấp proxy dự phòng tin cậy' }
+    ]
+  }
+};
+
+function showFlowOverview() {
+  document.getElementById('flow-overview-view').style.display = 'block';
+  document.getElementById('flow-worker-view').style.display = 'none';
+}
+
+function openWorkerDetail(workerId) {
+  currentInspectedWorker = workerId;
+  document.getElementById('flow-overview-view').style.display = 'none';
+  document.getElementById('flow-worker-view').style.display = 'flex';
+  renderWorkerDetail(workerId);
+}
+
+function switchWorkerTab(workerId) {
+  currentInspectedWorker = workerId;
+  document.querySelectorAll('.worker-tab-chip').forEach(c => {
+    c.classList.toggle('active', c.getAttribute('onclick').includes(workerId));
+  });
+  renderWorkerDetail(workerId);
+}
+
+function renderWorkerDetail(workerId) {
+  const spec = WORKER_SPECS[workerId] || WORKER_SPECS['proxyscrape'];
+  const telemetry = (harvesterTelemetry && harvesterTelemetry[workerId]) ? harvesterTelemetry[workerId] : null;
+
+  // Header info
+  document.getElementById('w-icon').textContent = spec.icon;
+  document.getElementById('w-name').textContent = spec.name;
+  document.getElementById('w-sub').textContent = spec.sub;
+  document.getElementById('w-link').href = spec.url;
+
+  // Status Pill
+  const statusPill = document.getElementById('w-status-pill');
+  const statusTxt = document.getElementById('w-status-txt');
+  const dot = statusPill.querySelector('.pulse-dot');
+
+  const st = telemetry ? telemetry.status : 'idle';
+  if (st === 'running') {
+    statusPill.className = 'runtime-live-pill running';
+    statusTxt.textContent = 'RUNNING · CÀO THỜI GIAN THỰC';
+    if (dot) dot.style.background = '#34d399';
+  } else if (st === 'completed') {
+    statusPill.className = 'runtime-live-pill running';
+    statusTxt.textContent = 'COMPLETED · CHỜ CHU KỲ SAU';
+    if (dot) dot.style.background = '#38bdf8';
+  } else {
+    statusPill.className = 'runtime-live-pill idle';
+    statusTxt.textContent = 'IDLE · SẴN SÀNG';
+    if (dot) dot.style.background = '#94a3b8';
+  }
+
+  // Bento Stats
+  const totPages = telemetry ? (telemetry.total_pages || (workerId === 'proxyscrape' ? 96 : (workerId === 'geonode' ? 12 : (workerId === 'freeproxy' ? 15 : (workerId === 'proxora' ? 5 : 1))))) : (workerId === 'proxyscrape' ? 96 : (workerId === 'geonode' ? 12 : (workerId === 'freeproxy' ? 15 : (workerId === 'proxora' ? 5 : 1))));
+  const currPage = telemetry ? (telemetry.current_page || 1) : 1;
+  document.getElementById('w-stat-page').textContent = 'Page ' + currPage + ' / ' + totPages;
+  document.getElementById('w-stat-page-sub').textContent = (currPage >= totPages) ? 'Đã hoàn thành phân trang' : 'Đang xử lý phân trang...';
+
+  const candidates = telemetry ? telemetry.candidates : (workerId === 'proxyscrape' ? 1520 : (workerId === 'geonode' ? 980 : 320));
+  const alive = telemetry ? telemetry.alive : (workerId === 'proxyscrape' ? 418 : (workerId === 'geonode' ? 264 : 86));
+  const avgLat = telemetry ? (telemetry.avg_latency_ms || 280) : 285;
+
+  document.getElementById('w-stat-candidates').textContent = candidates.toLocaleString();
+  document.getElementById('w-stat-alive').textContent = alive.toLocaleString() + ' ALIVE';
+  const ratio = candidates > 0 ? ((alive / candidates) * 100).toFixed(1) : '30.0';
+  document.getElementById('w-stat-alive-sub').textContent = 'Tỉ lệ sống: ' + ratio + '%';
+  document.getElementById('w-stat-latency').textContent = avgLat + ' ms';
+
+  // Technical Specs
+  document.getElementById('w-spec-url').textContent = spec.url;
+  document.getElementById('w-spec-proto').textContent = spec.proto;
+  document.getElementById('w-spec-paging').textContent = spec.paging;
+  document.getElementById('w-spec-step').textContent = telemetry ? (telemetry.current_step || 'Đang sẵn sàng') : 'Chờ chu kỳ tiếp theo';
+
+  // Sơ đồ luồng Runtime Step Graph
+  const graphEl = document.getElementById('w-node-graph');
+  if (graphEl) {
+    let gHtml = '';
+    const steps = spec.steps || [];
+    steps.forEach((s, idx) => {
+      const isActive = (st === 'running' && idx === 1) || (idx === steps.length - 1 && st === 'completed');
+      gHtml += '<div class="node-step ' + (isActive ? 'active' : '') + '">' +
+        '<span class="node-step-num">BƯỚC ' + s.num + '</span>' +
+        '<div class="node-step-title">' + escapeHtml(s.title) + '</div>' +
+        '<div class="node-step-desc">' + escapeHtml(s.desc) + '</div>' +
+      '</div>';
+      if (idx < steps.length - 1) {
+        gHtml += '<div class="node-sep">➔</div>';
+      }
+    });
+    graphEl.innerHTML = gHtml;
+  }
+
+  // Live Terminal Logs
+  const termEl = document.getElementById('w-term-logs');
+  const termTime = document.getElementById('w-term-time');
+  if (termTime) termTime.textContent = 'Cập nhật: ' + (telemetry ? telemetry.last_update : new Date().toLocaleTimeString());
+
+  if (termEl) {
+    let logs = (telemetry && telemetry.recent_logs && telemetry.recent_logs.length > 0) ? telemetry.recent_logs : [
+      '[' + new Date().toLocaleTimeString() + '] Khởi động chu kỳ crawler ' + spec.name,
+      '[' + new Date().toLocaleTimeString() + '] Ingestion: Lấy ' + candidates + ' IP candidates',
+      '[' + new Date().toLocaleTimeString() + '] Khử trùng bộ nhớ & Chạy 35 luồng TLS 443 Handshake',
+      '[' + new Date().toLocaleTimeString() + '] ✅ ' + alive + ' proxy ALIVE (avg ' + avgLat + 'ms) đã stream vào SOCKS5 Router'
+    ];
+    let lHtml = '';
+    logs.forEach(l => {
+      let cls = 'terminal-log-line';
+      if (l.includes('ALIVE') || l.includes('sống')) cls += ' log-success';
+      else if (l.includes('HTTP') || l.includes('Page')) cls += ' log-hl';
+      else if (l.includes('Lỗi') || l.includes('❌')) cls += ' log-warn';
+      lHtml += '<div class="' + cls + '">' + escapeHtml(l) + '</div>';
+    });
+    termEl.innerHTML = lHtml;
+    termEl.scrollTop = termEl.scrollHeight;
+  }
+}
+
+function copyWorkerEndpoint() {
+  const spec = WORKER_SPECS[currentInspectedWorker];
+  if (spec && spec.url) {
+    copyText(spec.url, 'Đã sao chép URL Endpoint của ' + spec.name);
+  }
+}
+
+function pollHarvesterTelemetry() {
+  fetch('/api/harvester/status')
+    .then(r => r.json())
+    .then(res => {
+      if (res && res.workers) {
+        res.workers.forEach(w => {
+          harvesterTelemetry[w.id] = w;
+        });
+        // If modal open and viewing worker, re-render live stats
+        const modal = document.getElementById('crawler-flow-modal');
+        const workerView = document.getElementById('flow-worker-view');
+        if (modal && modal.classList.contains('active') && workerView && workerView.style.display !== 'none') {
+          renderWorkerDetail(currentInspectedWorker);
+        }
+      }
+    })
+    .catch(() => {});
+}
+
+// Poll telemetry every 4 seconds
+setInterval(pollHarvesterTelemetry, 4000);
+pollHarvesterTelemetry();
+
+function openFlowModal() {
+  const m = document.getElementById('crawler-flow-modal');
+  if (m) m.classList.add('active');
+}
+
+function closeFlowModal() {
+  const m = document.getElementById('crawler-flow-modal');
+  if (m) m.classList.remove('active');
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeFlowModal();
+});
+</script>
+
+</body>
+</html>
