@@ -25,4 +25,4 @@ services:
       - SOCKS_PASS=ProxyRotator2026!
       - FIRECRAWL_API_KEY=fc-ca86eb307fe74f40aa5177f572693565
       - CYCLE_INTERVAL=600
-      - CHECK_TIMEOUT=2.5
+      - CHECK_TIMEOUT=5.0
