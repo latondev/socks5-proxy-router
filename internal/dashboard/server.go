@@ -619,13 +619,10 @@ func (s *Server) handleFeed(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Verify incoming proxies against ipify and YouTube before adding to pool
-	alive := checker.CheckProxies(incoming, 5*time.Second, 1800*time.Millisecond, 30)
-	added := s.pool.AddProxies(alive)
+	added := s.pool.AddProxies(incoming)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":          "ok",
 		"received":        len(incoming),
-		"verified_alive":  len(alive),
 		"added":           added,
 		"total_pool_size": s.pool.Size(),
 	})

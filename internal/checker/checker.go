@@ -4,9 +4,7 @@ import (
 	"crypto/tls"
 	"io"
 	"log"
-	"net/http"
-	"net/url"
-	"regexp"
+	"net"
 	"sort"
 	"strings"
 	"sync"
@@ -91,64 +89,53 @@ func CheckProxies(proxies []model.Proxy, timeout time.Duration, maxLatency time.
 	return alive
 }
 
-// CheckHTTPS connects through the proxy and verifies both api.ipify.org (external IP retrieval)
-// and https://www.youtube.com/generate_204 (direct YouTube connectivity).
-var ipv4Regex = regexp.MustCompile(`^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$`)
-
+// CheckHTTPS connects through the proxy to www.google.com:443 and performs a real TLS handshake.
+// This guarantees the proxy supports HTTPS/port 443 required by OpenAI and Zed.
 func CheckHTTPS(p model.Proxy, timeout time.Duration) (bool, time.Duration) {
 	start := time.Now()
 
-	proxyURL, err := url.Parse("socks5://" + p.Addr())
+	conn, err := net.DialTimeout("tcp", p.Addr(), timeout)
 	if err != nil {
+		return false, 0
+	}
+	defer conn.Close()
+	conn.SetDeadline(time.Now().Add(timeout))
+
+	// SOCKS5 greeting
+	if _, err := conn.Write([]byte{0x05, 0x01, 0x00}); err != nil {
 		return false, 0
 	}
 
-	transport := &http.Transport{
-		Proxy: http.ProxyURL(proxyURL),
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-		},
-		DisableKeepAlives: true,
-	}
-	client := &http.Client{
-		Transport: transport,
-		Timeout:   timeout,
-	}
-
-	// 1. Verify api.ipify.org (ensures DNS resolution & outbound IPv4 traffic works)
-	req1, err := http.NewRequest("GET", "https://api.ipify.org", nil)
-	if err != nil {
-		return false, 0
-	}
-	req1.Header.Set("User-Agent", "curl/8.4.0")
-	resp1, err := client.Do(req1)
-	if err != nil {
-		return false, 0
-	}
-	defer resp1.Body.Close()
-
-	body, err := io.ReadAll(resp1.Body)
-	if err != nil {
-		return false, 0
-	}
-	egressIP := strings.TrimSpace(string(body))
-	if !ipv4Regex.MatchString(egressIP) {
+	reply := make([]byte, 2)
+	if _, err := io.ReadFull(conn, reply); err != nil || reply[0] != 0x05 || reply[1] != 0x00 {
 		return false, 0
 	}
 
-	// 2. Verify https://www.youtube.com/generate_204 (ensures YouTube is not blocked)
-	req2, err := http.NewRequest("GET", "https://www.youtube.com/generate_204", nil)
-	if err != nil {
-		return false, 0
-	}
-	req2.Header.Set("User-Agent", "curl/8.4.0")
-	resp2, err := client.Do(req2)
-	if err != nil {
-		return false, 0
-	}
-	defer resp2.Body.Close()
+	// SOCKS5 CONNECT to www.google.com:443
+	target := "www.google.com"
+	req := []byte{0x05, 0x01, 0x00, 0x03, byte(len(target))}
+	req = append(req, []byte(target)...)
+	req = append(req, 0x01, 0xbb) // port 443
 
-	if resp2.StatusCode < 200 || resp2.StatusCode >= 400 {
+	if _, err := conn.Write(req); err != nil {
+		return false, 0
+	}
+
+	connReply := make([]byte, 256)
+	n, err := conn.Read(connReply)
+	if err != nil || n < 2 || connReply[1] != 0x00 {
+		return false, 0
+	}
+
+	// Perform direct TLS handshake
+	tlsConn := tls.Client(conn, &tls.Config{
+		ServerName:         "www.google.com",
+		InsecureSkipVerify: true,
+	})
+	defer tlsConn.Close()
+
+	tlsConn.SetDeadline(time.Now().Add(timeout))
+	if err := tlsConn.Handshake(); err != nil {
 		return false, 0
 	}
 

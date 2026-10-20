@@ -1,43 +1,58 @@
-import re
+import socket
+import ssl
 import time
-import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Dict, Any, Optional
 
-IP_REGEX = re.compile(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$")
-
-def test_socks5_live(ip: str, port: int, timeout: float = 5.0) -> Optional[int]:
+def test_socks5_google(ip: str, port: int, timeout: float = 2.5) -> Optional[int]:
     """
-    Tests SOCKS5 connectivity against api.ipify.org and www.youtube.com/generate_204.
-    Returns latency in milliseconds if both succeed, None otherwise.
+    Tests SOCKS5 connectivity and real Google TLS 443 handshake.
+    Returns latency in milliseconds if successful, None otherwise.
     """
-    proxy_url = f"socks5h://{ip}:{port}"
-    proxies = {"http": proxy_url, "https": proxy_url}
-    start = time.time()
-    session = requests.Session()
-    session.headers.update({"User-Agent": "curl/8.4.0"})
+    start_time = time.time()
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    
     try:
-        # 1. Verify outbound IPv4 & DNS via api.ipify.org
-        r1 = session.get("https://api.ipify.org", proxies=proxies, timeout=timeout)
-        if r1.status_code != 200:
+        s.connect((ip, int(port)))
+        
+        # 1. SOCKS5 greeting: VER=5, NMETHODS=1, METHOD=0 (No Auth)
+        s.sendall(b"\x05\x01\x00")
+        resp = s.recv(2)
+        if len(resp) < 2 or resp[0] != 0x05 or resp[1] != 0x00:
+            s.close()
             return None
-        egress = r1.text.strip()
-        if not IP_REGEX.match(egress):
+            
+        # 2. SOCKS5 connect to www.google.com:443
+        target = b"www.google.com"
+        req = b"\x05\x01\x00\x03" + bytes([len(target)]) + target + (443).to_bytes(2, "big")
+        s.sendall(req)
+        
+        conn_resp = s.recv(256)
+        if len(conn_resp) < 2 or conn_resp[1] != 0x00:
+            s.close()
             return None
-
-        # 2. Verify YouTube is reachable (returns 204 No Content)
-        r2 = session.get("https://www.youtube.com/generate_204", proxies=proxies, timeout=timeout)
-        if r2.status_code < 200 or r2.status_code >= 400:
-            return None
-
-        latency_ms = int((time.time() - start) * 1000)
+            
+        # 3. Direct TLS handshake with Google
+        context = ssl.create_default_context()
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        
+        tls_sock = context.wrap_socket(s, server_hostname="www.google.com")
+        tls_sock.settimeout(timeout)
+        tls_sock.do_handshake()
+        tls_sock.close()
+        
+        latency_ms = int((time.time() - start_time) * 1000)
         return latency_ms
     except Exception:
+        try:
+            s.close()
+        except Exception:
+            pass
         return None
-    finally:
-        session.close()
 
-def check_batch_concurrent(proxies: List[Dict[str, Any]], max_workers: int = 30, timeout: float = 5.0) -> List[Dict[str, Any]]:
+def check_batch_concurrent(proxies: List[Dict[str, Any]], max_workers: int = 30, timeout: float = 2.5) -> List[Dict[str, Any]]:
     """
     Checks a batch of proxy dictionaries concurrently.
     Returns list of only alive proxies with measured 'latency_ms'.
@@ -54,7 +69,7 @@ def check_batch_concurrent(proxies: List[Dict[str, Any]], max_workers: int = 30,
         except ValueError:
             return None
             
-        lat = test_socks5_live(ip, port_num, timeout=timeout)
+        lat = test_socks5_google(ip, port_num, timeout=timeout)
         if lat is not None:
             res = dict(p)
             res["latency_ms"] = lat
