@@ -13,7 +13,7 @@ The system automatically collects free high-speed SOCKS5 proxies from multiple c
 
 ## Key Highlights
 
-- **Multi-Source Scraping**: Concurrently gathers proxies from high-volume, verified feeds (`Proxify.vn`, `Monosans`, and `socks5-proxy.github.io`), aggregating 1,500+ candidates per cycle.
+- **Multi-Source Scraping**: Concurrently gathers proxies from high-volume, verified feeds (`TheSpeedX`, `Monosans`, `ProxyScrape`, `Geonode`, and `socks5-proxy.github.io`), aggregating 6,000+ candidates per cycle.
 - **Strict Connectivity & TLS Verification**: Concurrently verifies connectivity by performing direct Google TLS handshakes (`google.com:443`) through each candidate.
 - **Latency Filtering**: Filters candidates by customizable latency caps (default: `< 2500ms`) and sorts the pool from fastest to slowest.
 - **Geo-Location & Flag Resolution**: Resolves IP regions, cities, and countries, automatically attaching country flag emojis and filtering unwanted regions.

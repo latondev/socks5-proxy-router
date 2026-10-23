@@ -36,10 +36,10 @@ func (m *Manager) RegisterProvider(p Provider) {
 	m.providers = append(m.providers, p)
 }
 
-// RegisterDefaultProviders sets up the 3 standard default sources.
+// RegisterDefaultProviders sets up the standard default sources.
 func (m *Manager) RegisterDefaultProviders() {
-	m.RegisterProvider(NewProxifyProvider())
 	m.RegisterProvider(NewTextURLProvider("monosans", "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt"))
+	m.RegisterProvider(NewTextURLProvider("thespeedx", "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt"))
 	m.RegisterProvider(NewTextURLProvider("socks5-proxy.github.io", "https://socks5-proxy.github.io/"))
 }
 

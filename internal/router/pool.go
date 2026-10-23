@@ -6,6 +6,7 @@ import (
 	"sort"
 	"sync"
 
+	"socks5-pool/internal/checker"
 	"socks5-pool/internal/model"
 )
 
@@ -31,7 +32,7 @@ func (p *ProxyPool) log(msg, logType string) {
 }
 
 // AddProxies merges incoming verified proxies from external harvesters into the pool,
-// eliminating duplicates and keeping the pool sorted by latency.
+// eliminating duplicates, discarding blocked regions (e.g., HKG/VN/CN/RU), and keeping the pool sorted by latency.
 func (p *ProxyPool) AddProxies(newProxies []model.Proxy) (added int) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -45,6 +46,11 @@ func (p *ProxyPool) AddProxies(newProxies []model.Proxy) (added int) {
 		if np.IP == "" || np.Port == "" {
 			continue
 		}
+		// Filter out blocked countries (e.g. HKG, VN, CN, RU, BY)
+		if checker.IsCountryBlocked(np.Country, np.CountryCode) || checker.IsCountryBlocked(np.City, "") {
+			continue
+		}
+
 		if idx, found := existing[np.Addr()]; found {
 			if np.Latency > 0 {
 				p.proxies[idx].Latency = np.Latency
@@ -155,6 +161,20 @@ func (p *ProxyPool) SwitchTo(index int) (model.Proxy, bool) {
 	px := p.proxies[p.current]
 	log.Printf("[pool] manual switch to #%d: %s (%s) [%d ms]", index, px.Addr(), px.Country, px.Latency.Milliseconds())
 	return px, true
+}
+
+// SwitchToAddr switches route to a specific proxy address (host:port).
+func (p *ProxyPool) SwitchToAddr(addr string) (model.Proxy, bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for i, px := range p.proxies {
+		if px.Addr() == addr {
+			p.current = i
+			log.Printf("[pool] manual switch to %s (%s) [%d ms]", addr, px.Country, px.Latency.Milliseconds())
+			return px, true
+		}
+	}
+	return model.Proxy{}, false
 }
 
 func (p *ProxyPool) CurrentIndex() int {

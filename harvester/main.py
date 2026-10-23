@@ -13,7 +13,7 @@ from .config import (
 )
 from .checker import check_batch_concurrent
 
-# Import all 9 workers
+# Import workers
 from .workers import (
     worker_proxyscrape,
     worker_geonode,
@@ -21,8 +21,8 @@ from .workers import (
     worker_proxy_free,
     worker_freeproxy,
     worker_fineproxy,
-    worker_proxify,
     worker_monosans,
+    worker_thespeedx,
     worker_socks5_github,
 )
 
@@ -33,20 +33,20 @@ WORKERS = [
     worker_proxy_free,
     worker_freeproxy,
     worker_fineproxy,
-    worker_proxify,
     worker_monosans,
+    worker_thespeedx,
     worker_socks5_github,
 ]
 
 WORKER_META = {
     worker_proxyscrape: {"id": "proxyscrape", "name": "ProxyScrape", "total_pages": 96},
-    worker_geonode: {"id": "geonode", "name": "Geonode", "total_pages": 12},
+    worker_geonode: {"id": "geonode", "name": "Geonode", "total_pages": 13},
     worker_proxora: {"id": "proxora", "name": "Proxora.io", "total_pages": 5},
     worker_proxy_free: {"id": "proxy_free", "name": "Proxy-Free", "total_pages": 1},
     worker_freeproxy: {"id": "freeproxy", "name": "FreeProxy.World", "total_pages": 15},
     worker_fineproxy: {"id": "fineproxy", "name": "FineProxy", "total_pages": 1},
-    worker_proxify: {"id": "proxify", "name": "Proxify.vn", "total_pages": 1},
     worker_monosans: {"id": "monosans", "name": "Monosans Feed", "total_pages": 1},
+    worker_thespeedx: {"id": "thespeedx", "name": "TheSpeedX Feed", "total_pages": 1},
     worker_socks5_github: {"id": "socks5_github", "name": "socks5-proxy.github.io", "total_pages": 1},
 }
 

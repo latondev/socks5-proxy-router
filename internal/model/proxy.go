@@ -50,8 +50,9 @@ type ActivityLog struct {
 // A max value is exclusive, matching the dashboard's latency bands:
 // fast <500ms, normal 500-1199ms, and standard >=1200ms.
 type LatencyFilter struct {
-	MinMs int64
-	MaxMs int64
+	MinMs   int64
+	MaxMs   int64
+	Country string
 }
 
 func (f LatencyFilter) Match(p Proxy) bool {
@@ -62,11 +63,18 @@ func (f LatencyFilter) Match(p Proxy) bool {
 	if f.MaxMs > 0 && latencyMs >= f.MaxMs {
 		return false
 	}
+	if f.Country != "" {
+		c := strings.ToLower(f.Country)
+		matchCountry := strings.ToLower(p.Country) == c || strings.ToLower(p.CountryCode) == c
+		if !matchCountry {
+			return false
+		}
+	}
 	return true
 }
 
 func (f LatencyFilter) Apply(proxies []Proxy) []Proxy {
-	if f.MinMs == 0 && f.MaxMs == 0 {
+	if f.MinMs == 0 && f.MaxMs == 0 && f.Country == "" {
 		return proxies
 	}
 
@@ -100,31 +108,36 @@ func ParseLatencyFilter(r *http.Request) (LatencyFilter, error) {
 	if filter.MinMs > 0 && filter.MaxMs > 0 && filter.MinMs >= filter.MaxMs {
 		return LatencyFilter{}, fmt.Errorf("min_latency_ms must be lower than max_latency_ms")
 	}
+
+	filter.Country = strings.TrimSpace(r.URL.Query().Get("country"))
 	return filter, nil
 }
 
 // StatusData represents the full payload sent to dashboard and /api/status.
 type StatusData struct {
-	Total             int           `json:"total"`
-	ActiveIndex       int           `json:"active_index"`
-	ActiveProxy       string        `json:"active_proxy"`
-	ActiveRegion      string        `json:"active_region"`
-	ActiveCountry     string        `json:"active_country"`
-	ActiveCity        string        `json:"active_city"`
-	ActiveCountryCode string        `json:"active_country_code"`
-	ActiveLatencyMs   int64         `json:"active_latency_ms"`
-	FastestLatencyMs  int64         `json:"fastest_latency_ms"`
-	AvgLatencyMs      int64         `json:"avg_latency_ms"`
-	FastCount         int           `json:"fast_count"`
-	MidCount          int           `json:"mid_count"`
-	SlowCount         int           `json:"slow_count"`
-	CountriesCount    int           `json:"countries_count"`
-	LastScrape        string        `json:"last_scrape"`
-	NextScrape        string        `json:"next_scrape"`
-	NextScrapeUnix    int64         `json:"next_scrape_unix"`
-	ListenAddr        string        `json:"listen_addr"`
-	AuthUser          string        `json:"auth_user"`
-	AuthPass          string        `json:"auth_pass"`
-	Logs              []ActivityLog `json:"logs"`
-	Proxies           []ProxyStatus `json:"proxies"`
+	Total             int            `json:"total"`
+	ActiveIndex       int            `json:"active_index"`
+	ActiveProxy       string         `json:"active_proxy"`
+	ActiveRegion      string         `json:"active_region"`
+	ActiveCountry     string         `json:"active_country"`
+	ActiveCity        string         `json:"active_city"`
+	ActiveCountryCode string         `json:"active_country_code"`
+	ActiveLatencyMs   int64          `json:"active_latency_ms"`
+	FastestLatencyMs  int64          `json:"fastest_latency_ms"`
+	AvgLatencyMs      int64          `json:"avg_latency_ms"`
+	FastCount         int            `json:"fast_count"`
+	MidCount          int            `json:"mid_count"`
+	SlowCount         int            `json:"slow_count"`
+	CountriesCount    int            `json:"countries_count"`
+	LastScrape        string         `json:"last_scrape"`
+	NextScrape        string         `json:"next_scrape"`
+	NextScrapeUnix    int64          `json:"next_scrape_unix"`
+	ListenAddr        string         `json:"listen_addr"`
+	AuthUser          string         `json:"auth_user"`
+	AuthPass          string         `json:"auth_pass"`
+	FilterPolicy      string         `json:"filter_policy"`
+	BlockedCountries  []string       `json:"blocked_countries"`
+	CountryStats      map[string]int `json:"country_stats"`
+	Logs              []ActivityLog  `json:"logs"`
+	Proxies           []ProxyStatus  `json:"proxies"`
 }

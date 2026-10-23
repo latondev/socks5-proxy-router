@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -162,7 +163,7 @@ func (s *Server) handleConn(conn net.Conn) {
 	}
 
 	// 3. Connect via fastest live proxy (with fast 3s dial timeout); if fails, prune and retry
-	maxRetries := 3
+	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
 		upstream, ok := s.pool.Current()
 		if !ok {
@@ -182,7 +183,18 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	// 4. Emergency Failover: If all upstream proxies in pool failed or empty, fallback to DIRECT VPS connection!
+	// 4. Emergency Failover:
+	// For AI destinations (Zed, OpenAI, Anthropic), NEVER fallback to direct VPS connection from Vietnam
+	// because direct connection triggers 451 Data Center HKG restrictions!
+	isSensitiveTarget := strings.Contains(targetAddr, "zed.dev") || strings.Contains(targetAddr, "openai") || strings.Contains(targetAddr, "anthropic")
+	if isSensitiveTarget {
+		log.Printf("[server] upstream pool failed for sensitive AI target %s; skipping direct VPS fallback to prevent 451 HKG restriction", targetAddr)
+		s.log(fmt.Sprintf("Protection: Suppressed direct VPS fallback for %s (anti-HKG block)", targetAddr), "fallback")
+		s.triggerRefresh()
+		s.sendReply(conn, 0x04)
+		return
+	}
+
 	log.Printf("[server] upstream pool exhausted/failed, falling back to DIRECT VPS connection for %s", targetAddr)
 	s.log(fmt.Sprintf("Emergency: Fallback to Direct VPS route for %s", targetAddr), "fallback")
 	directRemote, err := net.DialTimeout("tcp", targetAddr, 5*time.Second)

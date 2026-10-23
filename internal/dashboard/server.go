@@ -179,26 +179,6 @@ func initDefaultWorkers() map[string]WorkerRuntimeStatus {
 				fmt.Sprintf("[%s] 95 proxy sống được thêm vào pool", now),
 			},
 		},
-		"proxify": {
-			ID:          "proxify",
-			Name:        "Proxify.vn",
-			Status:      "idle",
-			CurrentPage: 1,
-			TotalPages:  1,
-			CurrentStep: "Đã đồng bộ nguồn Proxify.vn",
-			Candidates:  120,
-			Alive:       48,
-			Dead:        72,
-			AvgLatency:  185,
-			LastUpdate:  now,
-			SourceURL:   "https://proxify.vn/api/free-proxy?type=socks5",
-			Protocol:    "SOCKS5",
-			DataFormat:  "REST API JSON Feed",
-			RecentLogs: []string{
-				fmt.Sprintf("[%s] Gọi Proxify API lấy proxy Việt Nam & Quốc tế", now),
-				fmt.Sprintf("[%s] Tốc độ phản hồi cao (185ms), 48 proxy sống", now),
-			},
-		},
 		"monosans": {
 			ID:          "monosans",
 			Name:        "Monosans Feed",
@@ -217,6 +197,26 @@ func initDefaultWorkers() map[string]WorkerRuntimeStatus {
 			RecentLogs: []string{
 				fmt.Sprintf("[%s] Tải trực tiếp GitHub Raw SOCKS5 stream", now),
 				fmt.Sprintf("[%s] 165 proxy sống vượt qua Google TLS test", now),
+			},
+		},
+		"thespeedx": {
+			ID:          "thespeedx",
+			Name:        "TheSpeedX Feed",
+			Status:      "idle",
+			CurrentPage: 1,
+			TotalPages:  1,
+			CurrentStep: "Đã nạp TheSpeedX Raw Stream",
+			Candidates:  3300,
+			Alive:       450,
+			Dead:        2850,
+			AvgLatency:  290,
+			LastUpdate:  now,
+			SourceURL:   "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt",
+			Protocol:    "SOCKS5",
+			DataFormat:  "GitHub Daily Updated Stream",
+			RecentLogs: []string{
+				fmt.Sprintf("[%s] Tải 3.300+ proxy từ TheSpeedX GitHub stream", now),
+				fmt.Sprintf("[%s] Đã kiểm tra TLS và stream các proxy sống vào pool", now),
 			},
 		},
 		"socks5_github": {
@@ -353,6 +353,15 @@ func (s *Server) getStatusData(filter model.LatencyFilter) model.StatusData {
 		})
 	}
 
+	countryStats := make(map[string]int)
+	for _, p := range proxies {
+		c := p.Country
+		if c == "" {
+			c = "Unknown"
+		}
+		countryStats[c]++
+	}
+
 	var avgLatency int64
 	if len(proxies) > 0 && totalLatency > 0 {
 		avgLatency = totalLatency / int64(len(proxies))
@@ -405,6 +414,9 @@ func (s *Server) getStatusData(filter model.LatencyFilter) model.StatusData {
 		ListenAddr:        s.listenAddr,
 		AuthUser:          s.authUser,
 		AuthPass:          s.authPass,
+		FilterPolicy:      "Non-HKG (OpenAI / Zed AI Ready)",
+		BlockedCountries:  checker.BlockedListDisplay,
+		CountryStats:      countryStats,
 		Logs:              logsCopy,
 		Proxies:           ps,
 	}
@@ -437,6 +449,27 @@ func (s *Server) handleRefresh(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleSwitch(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Support switching by address directly (host:port)
+	addr := strings.TrimSpace(r.URL.Query().Get("addr"))
+	if addr != "" {
+		if p, ok := s.pool.SwitchToAddr(addr); ok {
+			idx := s.pool.CurrentIndex()
+			if s.logStore != nil {
+				s.logStore.Add(fmt.Sprintf("Switched to proxy %s (%s, %s)", p.Addr(), p.Country, p.City), "switch")
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"status": "ok",
+				"proxy":  p.Addr(),
+				"index":  idx,
+			})
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"status": "proxy not found"})
+		return
+	}
+
 	indexStr := r.URL.Query().Get("index")
 	if indexStr != "" {
 		index, err := strconv.Atoi(indexStr)

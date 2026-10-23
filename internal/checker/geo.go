@@ -7,12 +7,13 @@ import (
 	"time"
 )
 
-// Blocked countries: unsupported by Google / OpenAI / Anthropic
+// Blocked countries: unsupported by Google / OpenAI / Anthropic, or routed to Cloudflare/Fly.io HKG data center.
 var blockedCountries = map[string]bool{
 	"china":       true,
 	"cn":          true,
 	"hong kong":   true,
 	"hk":          true,
+	"hkg":         true,
 	"russia":      true,
 	"ru":          true,
 	"belarus":     true,
@@ -21,15 +22,49 @@ var blockedCountries = map[string]bool{
 	"ir":          true,
 	"north korea": true,
 	"kp":          true,
+	"vietnam":     true,
+	"vn":          true,
+	"hanoi":       true,
+	"ho chi minh": true,
+	"da nang":     true,
+	"macau":       true,
+	"mo":          true,
+	"cuba":        true,
+	"cu":          true,
+	"syria":       true,
+	"sy":          true,
 }
 
-// IsCountryBlocked checks whether country name or code is in the restricted list.
+// BlockedListDisplay provides human-readable labels for the blocked regions
+var BlockedListDisplay = []string{
+	"Hong Kong (HKG)",
+	"Vietnam (VN - Routes to HKG)",
+	"China (CN)",
+	"Russia (RU)",
+	"Belarus (BY)",
+	"Iran (IR)",
+	"North Korea (KP)",
+	"Macau (MO)",
+}
+
+// IsCountryBlocked checks whether country name, code, or city is in the restricted list.
 func IsCountryBlocked(country, code string) bool {
-	if country != "" && blockedCountries[strings.ToLower(strings.TrimSpace(country))] {
-		return true
+	c := strings.ToLower(strings.TrimSpace(country))
+	if c != "" {
+		if blockedCountries[c] {
+			return true
+		}
+		for blocked := range blockedCountries {
+			if len(blocked) > 3 && strings.Contains(c, blocked) {
+				return true
+			}
+		}
 	}
-	if code != "" && blockedCountries[strings.ToLower(strings.TrimSpace(code))] {
-		return true
+	cd := strings.ToLower(strings.TrimSpace(code))
+	if cd != "" {
+		if blockedCountries[cd] {
+			return true
+		}
 	}
 	return false
 }

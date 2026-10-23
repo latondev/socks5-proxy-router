@@ -644,6 +644,93 @@ body {
   color: #fff;
 }
 
+/* Non-HKG Routing Policy Banner & Country Filters */
+.routing-policy-card {
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(56, 189, 248, 0.05));
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.policy-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #34d399;
+}
+
+.policy-tags {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.policy-tag {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.policy-tag.blocked {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.25);
+}
+
+.policy-tag.safe {
+  background: rgba(56, 189, 248, 0.12);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.country-filter-row {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-top: 8px;
+  scrollbar-width: thin;
+}
+
+.country-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.country-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.country-chip.active {
+  background: rgba(16, 185, 129, 0.18);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.15);
+}
+
 /* Proxy Card List */
 .proxies-stack {
   display: flex;
@@ -1636,6 +1723,7 @@ body {
 
       <div class="snippet-tabs">
         <button class="tab-btn active" onclick="pickSnippetTab('curl', this)">cURL</button>
+        <button class="tab-btn" onclick="pickSnippetTab('zed', this)">⚡ Zed IDE</button>
         <button class="tab-btn" onclick="pickSnippetTab('python', this)">Python</button>
         <button class="tab-btn" onclick="pickSnippetTab('env', this)">Env</button>
         <button class="tab-btn" onclick="pickSnippetTab('git', this)">Git</button>
@@ -1674,6 +1762,18 @@ body {
 
   <!-- Right Explorer -->
   <section class="explorer-panel">
+    <!-- Non-HKG Routing Policy Banner -->
+    <div class="routing-policy-card">
+      <div class="policy-badge">
+        <span>🛡️</span>
+        <span>Policy: Non-HKG Routing (OpenAI / Zed AI Ready)</span>
+      </div>
+      <div class="policy-tags">
+        <span class="policy-tag blocked">🚫 Excluded: HK (Hong Kong), VN (Vietnam), CN (China), RU, BY</span>
+        <span class="policy-tag safe">✅ Active Safe Zones: US, SG, JP, NL, DE, GB...</span>
+      </div>
+    </div>
+
     <div class="explorer-toolbar">
       <div class="search-wrap">
         <svg class="search-ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -1696,6 +1796,11 @@ body {
           </button>
         </div>
       </div>
+    </div>
+
+    <!-- Country Filter Chips Row -->
+    <div class="country-filter-row" id="country-filter-container">
+      <button class="country-chip active" onclick="changeCountryFilter('all', this)">All Safe Countries ({{.Total}})</button>
     </div>
 
     <!-- Proxy List View -->
@@ -1811,17 +1916,18 @@ body {
                 <span class="worker-inspect-pill">Flow ➔</span>
               </div>
             </div>
-            <div class="worker-card" onclick="openWorkerDetail('proxify')" title="Bấm để xem sơ đồ runtime & live log">
-              <div class="worker-left">🇻🇳 Proxify.vn</div>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <span class="worker-tag">Verified SSL API</span>
-                <span class="worker-inspect-pill">Flow ➔</span>
-              </div>
-            </div>
+
             <div class="worker-card" onclick="openWorkerDetail('monosans')" title="Bấm để xem sơ đồ runtime & live log">
               <div class="worker-left">📦 Monosans Feed</div>
               <div style="display:flex;align-items:center;gap:6px;">
                 <span class="worker-tag">GitHub Raw Live</span>
+                <span class="worker-inspect-pill">Flow ➔</span>
+              </div>
+            </div>
+            <div class="worker-card" onclick="openWorkerDetail('thespeedx')" title="Bấm để xem sơ đồ runtime & live log">
+              <div class="worker-left">⚡ TheSpeedX Feed</div>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="worker-tag">GitHub 3,300+ IPs</span>
                 <span class="worker-inspect-pill">Flow ➔</span>
               </div>
             </div>
@@ -1952,8 +2058,8 @@ body {
           <span class="worker-tab-chip" onclick="switchWorkerTab('proxy_free')">🛡️ Proxy-Free</span>
           <span class="worker-tab-chip" onclick="switchWorkerTab('freeproxy')">🔥 FreeProxy.World</span>
           <span class="worker-tab-chip" onclick="switchWorkerTab('fineproxy')">📊 FineProxy</span>
-          <span class="worker-tab-chip" onclick="switchWorkerTab('proxify')">🇻🇳 Proxify.vn</span>
           <span class="worker-tab-chip" onclick="switchWorkerTab('monosans')">📦 Monosans</span>
+          <span class="worker-tab-chip" onclick="switchWorkerTab('thespeedx')">⚡ TheSpeedX</span>
           <span class="worker-tab-chip" onclick="switchWorkerTab('socks5_github')">🔗 socks5-proxy</span>
         </div>
       </div>
@@ -2180,7 +2286,48 @@ function renderApp(d) {
     }
   }
 
+  renderCountryFilters(d.proxies);
   renderExplorer(d.proxies);
+}
+
+let activeCountryFilter = 'all';
+
+function renderCountryFilters(proxies) {
+  const container = document.getElementById('country-filter-container');
+  if (!container || !proxies) return;
+
+  const counts = {};
+  proxies.forEach(p => {
+    const c = p.country || 'Unknown';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+
+  const sortedCountries = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  let html = '<button class="country-chip ' + (activeCountryFilter === 'all' ? 'active' : '') + '" onclick="changeCountryFilter(\'all\', this)">All Safe (' + proxies.length + ')</button>';
+
+  sortedCountries.forEach(c => {
+    const isAct = activeCountryFilter.toLowerCase() === c.toLowerCase();
+    const flag = getFlagEmojiForCountry(c, proxies);
+    html += '<button class="country-chip ' + (isAct ? 'active' : '') + '" onclick="changeCountryFilter(\'' + escapeHtml(c) + '\', this)">' + flag + ' ' + escapeHtml(c) + ' (' + counts[c] + ')</button>';
+  });
+  container.innerHTML = html;
+}
+
+function getFlagEmojiForCountry(countryName, proxies) {
+  if (proxies) {
+    const found = proxies.find(p => (p.country || '').toLowerCase() === countryName.toLowerCase());
+    if (found && found.country_code) {
+      return getFlagEmoji(found.country_code);
+    }
+  }
+  return '🌐';
+}
+
+function changeCountryFilter(c, btn) {
+  activeCountryFilter = c;
+  document.querySelectorAll('.country-chip').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+  if (appState) renderExplorer(appState.proxies);
 }
 
 function renderExplorer(proxies) {
@@ -2197,6 +2344,12 @@ function renderExplorer(proxies) {
     if (activeFilter === 'fast' && p.latency_ms >= 500) return false;
     if (activeFilter === 'mid' && (p.latency_ms < 500 || p.latency_ms >= 1200)) return false;
     if (activeFilter === 'slow' && p.latency_ms < 1200) return false;
+
+    if (activeCountryFilter !== 'all') {
+      const pC = (p.country || '').toLowerCase();
+      const targetC = activeCountryFilter.toLowerCase();
+      if (pC !== targetC) return false;
+    }
 
     if (q) {
       const matchA = p.addr.toLowerCase().includes(q);
@@ -2222,7 +2375,7 @@ function renderExplorer(proxies) {
       const loc = p.city ? (p.country + ', ' + p.city) : (p.country || 'Unknown');
       const flag = getFlagEmoji(p.country_code);
 
-      html += '<tr' + activeClass + ' onclick="routeToProxy(' + p.index + ', this)">' +
+      html += '<tr' + activeClass + ' onclick="routeToProxy(\'' + escapeHtml(p.addr) + '\', this)">' +
         '<td style="font-family:var(--font-mono);color:var(--text-muted)">#' + p.index + '</td>' +
         '<td><span class="flag-emoji">' + flag + '</span></td>' +
         '<td><span style="font-family:var(--font-mono);font-weight:600;color:#fff">' + escapeHtml(p.addr) + '</span></td>' +
@@ -2242,7 +2395,7 @@ function renderExplorer(proxies) {
       const loc = p.city ? (p.country + ', ' + p.city) : (p.country || 'Unknown');
       const flag = getFlagEmoji(p.country_code);
 
-      html += '<div class="proxy-card-item' + activeClass + '" onclick="routeToProxy(' + p.index + ', this)">' +
+      html += '<div class="proxy-card-item' + activeClass + '" onclick="routeToProxy(\'' + escapeHtml(p.addr) + '\', this)">' +
         '<div class="card-left">' +
           '<span class="card-idx">#' + p.index + '</span>' +
           '<span class="flag-emoji">' + flag + '</span>' +
@@ -2293,15 +2446,19 @@ function switchViewMode(mode) {
   if (appState) renderExplorer(appState.proxies);
 }
 
-function routeToProxy(idx, el) {
+function routeToProxy(target, el) {
   if (el && el.classList.contains('active')) return;
   if (el) el.style.opacity = '0.5';
 
-  fetch('/api/switch?index=' + idx)
+  const query = (typeof target === 'string' && target.includes(':'))
+    ? ('addr=' + encodeURIComponent(target))
+    : ('index=' + target);
+
+  fetch('/api/switch?' + query)
     .then(r => r.json())
     .then(res => {
       if (res.status === 'ok') {
-        showToast('Switched to #' + idx + ' (' + (res.proxy || 'active') + ')');
+        showToast('Switched to route: ' + (res.proxy || target));
         refreshStatusFeed();
       } else {
         if (el) el.style.opacity = '1';
@@ -2439,6 +2596,8 @@ function pickSnippetTab(type, btn) {
 
   if (type === 'curl') {
     val.textContent = 'curl -x socks5h://' + ep + ' https://api.ipify.org';
+  } else if (type === 'zed') {
+    val.textContent = '{\n  "proxy": "socks5h://' + ep + '"\n}';
   } else if (type === 'python') {
     val.textContent = "proxies = {'http': 'socks5h://" + ep + "', 'https': 'socks5h://" + ep + "'}";
   } else if (type === 'env') {
@@ -2579,22 +2738,7 @@ const WORKER_SPECS = {
       { num: '05', title: 'Pool Inject', desc: 'Nạp danh sách sống vào Router' }
     ]
   },
-  'proxify': {
-    id: 'proxify',
-    name: 'Proxify.vn',
-    icon: '🇻🇳',
-    url: 'https://proxify.vn/api/free-proxy?type=socks5',
-    sub: 'Vietnam & Regional Verified Proxy Engine',
-    proto: 'SOCKS5 · REST JSON Feed',
-    paging: 'Verified API Feed',
-    steps: [
-      { num: '01', title: 'API Ingest', desc: 'Gọi API Proxify lấy proxy sạch' },
-      { num: '02', title: 'JSON Mapping', desc: 'Map địa chỉ IP, Port và Quốc gia' },
-      { num: '03', title: 'Dedup Check', desc: 'Khử trùng bộ nhớ' },
-      { num: '04', title: 'Google TLS 443', desc: 'Kiểm tra độ trễ (thường cực thấp <250ms)' },
-      { num: '05', title: 'Stream Router', desc: 'Đưa vào vị trí ưu tiên trong pool' }
-    ]
-  },
+
   'monosans': {
     id: 'monosans',
     name: 'Monosans Feed',
@@ -2609,6 +2753,22 @@ const WORKER_SPECS = {
       { num: '03', title: 'Dedup Check', desc: 'Khử trùng IP' },
       { num: '04', title: 'Google TLS 443', desc: 'Kiểm tra 35 luồng handshake' },
       { num: '05', title: 'Stream Router', desc: 'Bơm vào pool thời gian thực' }
+    ]
+  },
+  'thespeedx': {
+    id: 'thespeedx',
+    name: 'TheSpeedX Feed',
+    icon: '⚡',
+    url: 'https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt',
+    sub: 'TheSpeedX/PROXY-List Daily Updated Feed',
+    proto: 'SOCKS5 · GitHub Raw Stream',
+    paging: '3,300+ SOCKS5 candidates cập nhật liên tục',
+    steps: [
+      { num: '01', title: 'GitHub Raw Pull', desc: 'Tải 3.300+ SOCKS5 proxy từ repo TheSpeedX' },
+      { num: '02', title: 'Regex & Batch', desc: 'Trích xuất IP:Port và gom batch 150 IP' },
+      { num: '03', title: 'Deduplication', desc: 'Khử trùng địa chỉ đã kiểm tra' },
+      { num: '04', title: 'Concurrent TLS', desc: 'Chạy 35 luồng test Google TLS 443' },
+      { num: '05', title: 'Stream Router', desc: 'Đưa các proxy sống vào pool' }
     ]
   },
   'socks5_github': {
