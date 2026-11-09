@@ -176,3 +176,98 @@ func (p *TextURLProvider) Fetch(ctx context.Context, client *http.Client) ([]mod
 
 	return ParseTextProxies(string(body)), nil
 }
+
+// -----------------------------------------------------------------------------
+// CharlesPikachuProvider: https://raw.githubusercontent.com/CharlesPikachu/freeproxy/master/proxies.json
+// -----------------------------------------------------------------------------
+
+type CharlesPikachuProvider struct {
+	endpoints []string
+}
+
+func NewCharlesPikachuProvider() *CharlesPikachuProvider {
+	return &CharlesPikachuProvider{
+		endpoints: []string{
+			"https://raw.githubusercontent.com/CharlesPikachu/freeproxy/master/proxies.json",
+			"https://charlespikachu.github.io/freeproxy/proxies.json",
+		},
+	}
+}
+
+func (p *CharlesPikachuProvider) Name() string {
+	return "charlespikachu-freeproxy"
+}
+
+type charlesPikachuItem struct {
+	IP        string `json:"ip"`
+	Port      int    `json:"port"`
+	Protocol  string `json:"protocol"`
+	Country   string `json:"country"`
+	Anonymity string `json:"anonymity"`
+	Speed     int    `json:"speed"`
+}
+
+type charlesPikachuResp struct {
+	UpdatedAt string               `json:"updated_at"`
+	Count     int                  `json:"count"`
+	Data      []charlesPikachuItem `json:"data"`
+}
+
+func (p *CharlesPikachuProvider) Fetch(ctx context.Context, client *http.Client) ([]model.Proxy, error) {
+	var lastErr error
+	for _, ep := range p.endpoints {
+		req, err := http.NewRequestWithContext(ctx, "GET", ep, nil)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
+
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			lastErr = fmt.Errorf("unexpected status from %s: %d", ep, resp.StatusCode)
+			continue
+		}
+
+		var payload charlesPikachuResp
+		err = json.NewDecoder(resp.Body).Decode(&payload)
+		resp.Body.Close()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+
+		var proxies []model.Proxy
+		seen := make(map[string]bool)
+		for _, item := range payload.Data {
+			proto := strings.ToLower(item.Protocol)
+			if !strings.Contains(proto, "socks5") {
+				continue
+			}
+			if item.Port <= 0 || item.Port > 65535 || item.IP == "" {
+				continue
+			}
+			addr := fmt.Sprintf("%s:%d", item.IP, item.Port)
+			if seen[addr] {
+				continue
+			}
+			seen[addr] = true
+			proxies = append(proxies, model.Proxy{
+				IP:          item.IP,
+				Port:        strconv.Itoa(item.Port),
+				Country:     item.Country,
+				CountryCode: item.Country,
+			})
+		}
+		if len(proxies) > 0 {
+			return proxies, nil
+		}
+	}
+	return nil, fmt.Errorf("charlespikachu provider failed: %w", lastErr)
+}

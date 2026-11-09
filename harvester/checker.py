@@ -23,8 +23,8 @@ def test_socks5_google(ip: str, port: int, timeout: float = 2.5) -> Optional[int
             s.close()
             return None
             
-        # 2. SOCKS5 connect to www.google.com:443
-        target = b"www.google.com"
+        # 2. SOCKS5 connect to cloud.zed.dev:443
+        target = b"cloud.zed.dev"
         req = b"\x05\x01\x00\x03" + bytes([len(target)]) + target + (443).to_bytes(2, "big")
         s.sendall(req)
         
@@ -33,16 +33,21 @@ def test_socks5_google(ip: str, port: int, timeout: float = 2.5) -> Optional[int
             s.close()
             return None
             
-        # 3. Direct TLS handshake with Google
+        # 3. Direct TLS handshake with valid certificate verification (rejects MITM / self-signed proxies)
         context = ssl.create_default_context()
-        context.check_hostname = False
-        context.verify_mode = ssl.CERT_NONE
-        
-        tls_sock = context.wrap_socket(s, server_hostname="www.google.com")
+        tls_sock = context.wrap_socket(s, server_hostname="cloud.zed.dev")
         tls_sock.settimeout(timeout)
         tls_sock.do_handshake()
+        
+        # 4. HTTP verification to ensure bidirectional data transfer
+        http_req = b"GET / HTTP/1.1\r\nHost: cloud.zed.dev\r\nUser-Agent: Zed/0.180.0\r\nConnection: close\r\n\r\n"
+        tls_sock.sendall(http_req)
+        resp_http = tls_sock.recv(256)
         tls_sock.close()
         
+        if not resp_http.startswith(b"HTTP/"):
+            return None
+            
         latency_ms = int((time.time() - start_time) * 1000)
         return latency_ms
     except Exception:

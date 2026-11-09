@@ -2,6 +2,7 @@ package checker
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -23,8 +24,8 @@ func CheckProxies(proxies []model.Proxy, timeout time.Duration, maxLatency time.
 		sem   = make(chan struct{}, maxConcurrent)
 	)
 
-	// Cap candidates to test per cycle to keep check time under 10-15s
-	maxCandidates := 150
+	// Cap candidates to test per cycle
+	maxCandidates := 400
 	if len(proxies) > maxCandidates {
 		proxies = proxies[:maxCandidates]
 	}
@@ -41,7 +42,7 @@ func CheckProxies(proxies []model.Proxy, timeout time.Duration, maxLatency time.
 			defer wg.Done()
 			defer func() { <-sem }()
 
-			// 1. Measure real HTTPS (port 443 + TLS) latency
+			// 1. Measure real HTTPS (port 443 + TLS + HTTP payload) latency
 			ok, latency := CheckHTTPS(px, timeout)
 			if !ok {
 				return
@@ -89,8 +90,10 @@ func CheckProxies(proxies []model.Proxy, timeout time.Duration, maxLatency time.
 	return alive
 }
 
-// CheckHTTPS connects through the proxy to www.google.com:443 and performs a real TLS handshake.
-// This guarantees the proxy supports HTTPS/port 443 required by OpenAI and Zed.
+// CheckHTTPS connects through the proxy to cloud.zed.dev:443 (Cloudflare) and performs:
+// 1. SOCKS5 connect
+// 2. Strict TLS handshake with valid certificate verification (rejects MITM / self-signed proxies)
+// 3. Real HTTP request and response reading (rejects zombie proxies that drop on payload)
 func CheckHTTPS(p model.Proxy, timeout time.Duration) (bool, time.Duration) {
 	start := time.Now()
 
@@ -111,8 +114,8 @@ func CheckHTTPS(p model.Proxy, timeout time.Duration) (bool, time.Duration) {
 		return false, 0
 	}
 
-	// SOCKS5 CONNECT to www.google.com:443
-	target := "www.google.com"
+	// SOCKS5 CONNECT to cloud.zed.dev:443
+	target := "cloud.zed.dev"
 	req := []byte{0x05, 0x01, 0x00, 0x03, byte(len(target))}
 	req = append(req, []byte(target)...)
 	req = append(req, 0x01, 0xbb) // port 443
@@ -127,15 +130,30 @@ func CheckHTTPS(p model.Proxy, timeout time.Duration) (bool, time.Duration) {
 		return false, 0
 	}
 
-	// Perform direct TLS handshake
+	// Perform strict TLS handshake with genuine trusted CA certificates
 	tlsConn := tls.Client(conn, &tls.Config{
-		ServerName:         "www.google.com",
-		InsecureSkipVerify: true,
+		ServerName:         target,
+		InsecureSkipVerify: false, // CRITICAL: Blocks MITM / captive portal proxies
 	})
 	defer tlsConn.Close()
 
 	tlsConn.SetDeadline(time.Now().Add(timeout))
 	if err := tlsConn.Handshake(); err != nil {
+		return false, 0
+	}
+
+	// Verify real bidirectional HTTP data transfer
+	httpReq := fmt.Sprintf("GET / HTTP/1.1\r\nHost: %s\r\nUser-Agent: Zed/0.180.0\r\nConnection: close\r\n\r\n", target)
+	if _, err := tlsConn.Write([]byte(httpReq)); err != nil {
+		return false, 0
+	}
+
+	respBuf := make([]byte, 256)
+	nRead, err := tlsConn.Read(respBuf)
+	if err != nil || nRead < 12 {
+		return false, 0
+	}
+	if !strings.HasPrefix(string(respBuf[:nRead]), "HTTP/") {
 		return false, 0
 	}
 

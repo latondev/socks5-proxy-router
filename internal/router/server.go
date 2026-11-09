@@ -162,7 +162,7 @@ func (s *Server) handleConn(conn net.Conn) {
 		return
 	}
 
-	// 3. Connect via fastest live proxy (with fast 3s dial timeout); if fails, prune and retry
+	// 3. Connect via fastest live proxy (with fast 2.5s dial timeout); if fails, prune and retry
 	maxRetries := 5
 	for i := 0; i < maxRetries; i++ {
 		upstream, ok := s.pool.Current()
@@ -170,7 +170,7 @@ func (s *Server) handleConn(conn net.Conn) {
 			break
 		}
 
-		remote, err := dialViaSOCKS5(upstream, targetAddr, 3*time.Second)
+		remote, err := dialViaSOCKS5(upstream, targetAddr, 2500*time.Millisecond)
 		if err != nil {
 			log.Printf("[server] upstream %s dial failed: %v, pruning and trying next...", upstream.Addr(), err)
 			s.pool.RemoveFailed(upstream.Addr())
@@ -343,7 +343,8 @@ func (s *Server) relay(client, upstream net.Conn, px model.Proxy) {
 	uBytes := atomic.LoadInt64(&upstreamBytes)
 
 	// Zombie proxy detection:
-	if cBytes > 40 && uBytes == 0 && duration < 6*time.Second {
+	// If client sent data (e.g. TLS ClientHello) but upstream proxy returned 0 bytes, prune immediately!
+	if cBytes > 0 && uBytes == 0 {
 		log.Printf("[server] zombie proxy detected: %s dropped connection with 0 bytes returned (sent: %d, dur: %v), pruning...", px.Addr(), cBytes, duration)
 		s.pool.RemoveFailed(px.Addr())
 		s.log(fmt.Sprintf("Pruned zombie proxy %s (%s, 0 bytes returned)", px.Addr(), px.Country), "switch")

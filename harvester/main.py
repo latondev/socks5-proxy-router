@@ -15,6 +15,7 @@ from .checker import check_batch_concurrent
 
 # Import workers
 from .workers import (
+    worker_charlespikachu,
     worker_proxyscrape,
     worker_geonode,
     worker_proxora,
@@ -27,6 +28,7 @@ from .workers import (
 )
 
 WORKERS = [
+    worker_charlespikachu,
     worker_proxyscrape,
     worker_geonode,
     worker_proxora,
@@ -39,6 +41,7 @@ WORKERS = [
 ]
 
 WORKER_META = {
+    worker_charlespikachu: {"id": "charlespikachu", "name": "CharlesPikachu Feed", "total_pages": 1},
     worker_proxyscrape: {"id": "proxyscrape", "name": "ProxyScrape", "total_pages": 96},
     worker_geonode: {"id": "geonode", "name": "Geonode", "total_pages": 13},
     worker_proxora: {"id": "proxora", "name": "Proxora.io", "total_pages": 5},

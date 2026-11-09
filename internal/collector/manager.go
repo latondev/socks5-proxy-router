@@ -36,8 +36,18 @@ func (m *Manager) RegisterProvider(p Provider) {
 	m.providers = append(m.providers, p)
 }
 
-// RegisterDefaultProviders sets up the standard default sources.
+// RegisterDefaultProviders sets up the standard default sources, prioritizing verified and fresh feeds.
 func (m *Manager) RegisterDefaultProviders() {
+	// High-priority verified / live feeds
+	m.RegisterProvider(NewCharlesPikachuProvider())
+	m.RegisterProvider(NewProxifyProvider())
+	m.RegisterProvider(NewTextURLProvider("yakumo-checked", "https://raw.githubusercontent.com/elliottophellia/yakumo/master/results/socks5/global/socks5_checked.txt"))
+	m.RegisterProvider(NewTextURLProvider("proxyscrape", "https://api.proxyscrape.com/v2/?request=displayproxies&protocol=socks5&timeout=3000&country=all"))
+	m.RegisterProvider(NewTextURLProvider("hookzof", "https://raw.githubusercontent.com/hookzof/socks5_list/master/proxy.txt"))
+	m.RegisterProvider(NewTextURLProvider("proxifly", "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/protocols/socks5/data.txt"))
+	m.RegisterProvider(NewTextURLProvider("vakhov", "https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/socks5.txt"))
+	m.RegisterProvider(NewTextURLProvider("prxchk", "https://raw.githubusercontent.com/prxchk/proxy-list/main/socks5.txt"))
+	// High-volume bulk lists
 	m.RegisterProvider(NewTextURLProvider("monosans", "https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt"))
 	m.RegisterProvider(NewTextURLProvider("thespeedx", "https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt"))
 	m.RegisterProvider(NewTextURLProvider("socks5-proxy.github.io", "https://socks5-proxy.github.io/"))

@@ -127,16 +127,16 @@ func (a *App) Run() error {
 		}
 	}()
 
-	// 3. Proactive Active Watchdog (runs every 25 seconds)
+	// 3. Proactive Active Watchdog (runs every 15 seconds)
 	go func() {
-		ticker := time.NewTicker(25 * time.Second)
+		ticker := time.NewTicker(15 * time.Second)
 		defer ticker.Stop()
 		for range ticker.C {
 			current, ok := a.pool.Current()
 			if !ok {
 				continue
 			}
-			okCheck, lat := checker.CheckHTTPS(current, 3*time.Second)
+			okCheck, lat := checker.CheckHTTPS(current, a.cfg.CheckTimeout)
 			if !okCheck {
 				log.Printf("[watchdog] active proxy %s failed proactive TLS test, pruning immediately...", current.Addr())
 				a.pool.RemoveFailed(current.Addr())
@@ -150,7 +150,7 @@ func (a *App) Run() error {
 	// 4. Keep pool healthy and populate when low
 	go func() {
 		for {
-			time.Sleep(20 * time.Second)
+			time.Sleep(10 * time.Second)
 			if a.pool.Size() < 5 {
 				log.Printf("[main] pool low (%d remaining), triggering fresh scrape", a.pool.Size())
 				a.TriggerRefresh()
