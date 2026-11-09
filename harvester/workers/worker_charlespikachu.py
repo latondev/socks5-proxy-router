@@ -68,3 +68,4 @@ def scrape() -> Generator[List[Dict[str, Any]], None, None]:
         yield batch
 
     print(f"[{NAME}] Dispatched {total_socks5} SOCKS5 candidates to checker")
+
